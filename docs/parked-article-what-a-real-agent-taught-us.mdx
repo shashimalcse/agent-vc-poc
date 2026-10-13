@@ -1,0 +1,21 @@
+---
+title: What a real agent taught us about agent wallets
+description: Notes from running a personal agent against its own credential wallet. Parked for a later article.
+kind: Notes
+date: 2026-10-13
+draft: true
+---
+
+{/* Parked from "An agent with a credential of its own" on 13 Oct 2026. Not edited since. */}
+
+## What a real agent taught us
+
+We first ran the whole flow with a script playing the agent. Then we gave it to OpenClaw with no special instructions: just the offer link, and later the errand.
+
+- **The tool descriptions were enough.** Given only an offer link, the agent called `acquire_credential` on its own. At checkout it found the sign-in link, called `present_credential`, and relayed the approval link to Ada in plain words.
+- **Waiting is the hard part.** When the wallet needed Ada, the agent ended its turn and told her to approve. After she did, it sat idle until she wrote back, although the wallet could tell it the outcome by long-polling. The protocol has to say what an agent does while a person decides, and how it learns the answer.
+- **The credential belongs to the agent.** In one early run, the agent presented a credential that a test script had collected with the same agent key. The wallet did what it was told: the key decides whose credentials are used. So every agent gets its own key, credentials and keys belong to the agent that collected them, and the person only approves.
+- **Asking the person is the wallet's decision.** The point of an agent credential is that the agent can act on its own. But wallet builders will still require a person for some steps: the first visit to a site, a request for more details, an unfamiliar issuer. The agent has to handle both outcomes without knowing the policy in advance.
+- **An offer link is not a web page.** In one Discord session the wallet tools were briefly unavailable. Given the offer link, the agent tried to fetch it like a web page, and its own safety policy stopped it. An agent should hand offers and requests to its wallet untouched and never open them itself.
+
+These findings now feed into the next revision of [A2WP](../../a2wp/), the agent-to-wallet protocol we used between the agent and its wallet.

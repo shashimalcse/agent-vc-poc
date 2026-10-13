@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // `pnpm dev` behind Caddy: let the public hosts load dev-only assets (HMR, chunks).
   allowedDevOrigins: ["registry.localtest.me", "tickets.localtest.me"],
+  // No dev badge in the corner: these pages get screen-recorded for demos.
+  devIndicators: false,
 };
 
 export default nextConfig;

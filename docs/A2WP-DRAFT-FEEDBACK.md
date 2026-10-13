@@ -8,7 +8,7 @@ The PoC tests -00 against a real personal agent (OpenClaw), a remote MCP wallet 
 
 ## Direction so far
 
-Updated 12 Oct 2026 after the first end-to-end run: the real portal offer, then the a2wp-kt wallet over MCP, then the real checkout link, then seats held. The agent was scripted; OpenClaw itself has not been tried yet.
+Updated 13 Oct 2026 after the first run with a real agent: OpenClaw 2026.10.2 in its own Linux VM, connected to the remote a2wp-kt wallet over MCP, collected its credential from a pasted offer link, shopped and signed in at Lantern in its own browser, and held seats after one user approval. The 12 Oct baseline used a scripted agent.
 
 | Leaning | Items |
 | --- | --- |
@@ -30,7 +30,7 @@ Updated 12 Oct 2026 after the first end-to-end run: the real portal offer, then 
 
 - **Problem.** "Principal context" is required for authorization but left undefined. Does it carry weight when one wallet serves several agents for one user, holding both the agents' and the user's credentials?
 - **PoC test.** One wallet and two agents with separate API keys and policies.
-- **Evidence.** With credentials scoped per principal, one agent presented a credential that had been collected for another agent. The wallet is the agent's own, so its credentials and keys belong to that agent; the principal only approves.
+- **Evidence.** The wallet scopes credentials to the agent that acquired them, identified by its API key. When integration tests reused the `openclaw` key, their credentials became `openclaw`'s and one was presented in a demo run. The key is the agent's identity: each agent needs its own, its credentials and keys belong to it, and the principal only approves.
 - **Leaning.** Change (was Open).
 - **Candidate change.** Define the operation's context as the Agent. Credentials and keys are scoped to the Agent that acquired them, and the Principal is the approving party. Say how each binding establishes both.
 
@@ -192,7 +192,11 @@ Fill this in while the PoC runs, newest first.
 
 | Date | Item | Observation | Effect on leaning |
 | --- | --- | --- | --- |
-| 2026-10-13 | 2 | The wallet scoped credentials per principal: agent `openclaw` presented a credential collected for another agent (a test agent), and `manual`'s credential sat in the same pool. With the wallet as the agent's own, credentials and keys must be scoped per agent; the principal only approves. -00 never says whose credentials an operation may use. | Open → Change: define per-agent credential scope |
+| 2026-10-13 | 17 | Over Discord, the agent's session had no wallet tools (the MCP runtime had cached an earlier failure). Given the offer link, the agent tried to fetch the `openid-credential-offer://` URL itself with its web fetcher, which its SSRF policy blocked. After the MCP runtime was rebuilt, the same link went to `acquire_credential` and completed. An agent without a wallet treats an offer as a web page. | Supports item 17: say that an agent hands offers and requests to its wallet as-is and never dereferences them itself |
+| 2026-10-13 | All | First real-agent run. OpenClaw 2026.10.2 (Linux VM, wallet as a remote Streamable HTTP MCP server with a Bearer key) was given only the offer link and, later, "Get me two tickets for Friday at Lantern Hall" plus the site URL. No skill, no prompt about the tools. It called `acquire_credential` from the link alone (completed in 1.4 s), then browsed Lantern, picked seats, found the sign-in link on the verify page, called `present_credential`, relayed the wallet's approval link to the user in chat, and after approval held the seats. The tool descriptions were enough. | Baseline: the MCP binding works with a real agent |
+| 2026-10-13 | 5, 19 | On `interaction_required` the agent ended its turn and told the user to approve. After the user approved (the presentation completed 0.3 s later), the agent did nothing until the user wrote "Approved."; it then went on and finished the order. It never long-polled the operation. -00 doesn't say what an agent should do while an interaction is pending, or how it learns the outcome. | Change: say the agent should wait on the operation (long-poll until `interaction.expires_at`) and say so in the tool result; consider a completion notice the binding can push |
+| 2026-10-13 | 5 | The approval link travelled agent → chat → user as plain text and worked. | Neutral: the relay path works; whether the page authenticates the user is still the open part of item 5 |
+| 2026-10-13 | 2 | Agent `openclaw` presented an "Integration agent" credential. The wallet already scoped credentials per agent; the cause was integration test runs that used `openclaw`'s API key, so their credentials were owned by `openclaw` and the newest won. The API key is the agent's identity, so each agent (and each test harness) needs its own key. -00 never says whose credentials an operation may use. | Open → Change: say credentials and keys belong to the authenticated agent and the principal only approves |
 | 2026-10-13 | All | Redesigned pages end to end with the real wallet: Registry offer flips to Issued live; Lantern Sign in, then Open in wallet, then present (no approval: same agent, verifier and claims as before), then auto-advance to Welcome, then Hold my seats, then Seats held | Baseline for the video flow |
 | 2026-10-12 | All | First real end-to-end run: portal offer, then `acquire_credential` (completed), then the checkout link, then `present_credential` (completed, no re-approval needed), then "Seats held". Scripted agent; OpenClaw not yet tried. | Baseline |
 | 2026-10-12 | 3, 6 | `context`, query and handles were never needed in either flow | Drop confirmed |
