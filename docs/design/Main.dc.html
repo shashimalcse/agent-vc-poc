@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent Registry · Your agents</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F6F8}
+a{color:#2443E6}a:hover{color:#1A33B8}
+</style>
+</helmet>
+<div style="min-height: 1000px; background: #F5F6F8; color: #0E1116; font-family: 'Geist', system-ui, sans-serif; display: flex; flex-direction: column">
+  <header style="background: #FFFFFF; border-bottom: 1px solid #E3E6EB">
+    <div style="max-width: 1120px; margin: 0 auto; padding: 0 32px; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+      <a href="#" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #0E1116">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="7" fill="#2443E6"></rect><path d="M8 18.5 L12.5 9.5 L14 12.5 L15.5 9.5 L20 18.5" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <span style="font-weight: 600; font-size: 18px; letter-spacing: -0.01em">Agent Registry</span>
+      </a>
+      <nav style="display: flex; align-items: center; gap: 24px; font-size: 15px">
+        <a href="#" style="color: #0E1116; text-decoration: none; font-weight: 500">Your agents</a>
+        <span style="display: flex; align-items: center; gap: 10px; color: #4B5260">
+          <span style="width: 32px; height: 32px; border-radius: 16px; background: #E8ECFF; color: #2443E6; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600">AL</span>
+          Ada Lovelace
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width: 1120px; width: 100%; margin: 0 auto; padding: 72px 32px 96px; box-sizing: border-box; display: flex; flex-direction: column; gap: 48px">
+    <div style="display: flex; flex-direction: column; gap: 16px; max-width: 720px">
+      <p style="margin: 0; font-size: 14px; font-weight: 500; color: #2443E6; letter-spacing: 0.04em; text-transform: uppercase">For personal agents</p>
+      <h1 style="margin: 0; font-size: 56px; line-height: 1.05; font-weight: 600; letter-spacing: -0.035em">Give your agent a credential websites can trust.</h1>
+      <p style="margin: 0; font-size: 19px; line-height: 1.55; color: #4B5260">Register the agent that works for you. Its wallet holds a signed credential that says who runs it, so sites can let it in without passwords or CAPTCHAs.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; align-items: start">
+      <section aria-labelledby="register-title" style="background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 24px">
+        <h2 id="register-title" style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em">Register an agent</h2>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <label for="agent-name" style="font-size: 14px; font-weight: 500">Agent name</label>
+          <input id="agent-name" type="text" value="Ada's OpenClaw" style="height: 48px; border: 1px solid #C9CED6; border-radius: 10px; padding: 0 14px; font: inherit; font-size: 16px; color: #0E1116; background: #FFFFFF">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <label for="agent-provider" style="font-size: 14px; font-weight: 500">Runs on</label>
+          <select id="agent-provider" style="height: 48px; border: 1px solid #C9CED6; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 16px; color: #0E1116; background: #FFFFFF">
+            <option>OpenClaw</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
+          <legend style="font-size: 14px; font-weight: 500; padding: 0; margin-bottom: 8px">Accreditation</legend>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+            <label style="height: 48px; border: 1px solid #C9CED6; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; color: #4B5260"><input type="radio" name="level" style="margin: 0">Basic</label>
+            <label style="height: 48px; border: 2px solid #2443E6; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 500; color: #0E1116; background: #F2F4FF"><input type="radio" name="level" checked style="margin: 0">Verified</label>
+          </div>
+        </fieldset>
+        <button type="button" style="height: 52px; border: 0; border-radius: 12px; background: #2443E6; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer">Register agent</button>
+      </section>
+
+      <section aria-labelledby="agents-title" style="display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; align-items: baseline; justify-content: space-between">
+          <h2 id="agents-title" style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em">Your agents</h2>
+          <span style="font-size: 14px; color: #4B5260">2 registered</span>
+        </div>
+
+        <a href="RegistryIssued.dc.html" style="background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 16px; text-decoration: none; color: #0E1116">
+          <span style="width: 48px; height: 48px; border-radius: 12px; background: #2443E6; display: flex; align-items: center; justify-content: center; flex: none">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"></rect><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"></path></svg>
+          </span>
+          <span style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0">
+            <span style="font-size: 17px; font-weight: 600">Ada's OpenClaw</span>
+            <span style="font-size: 14px; color: #4B5260">OpenClaw · Verified · <span style="font-family: 'Geist Mono', monospace">agt_7Hk2pQ</span></span>
+          </span>
+          <span style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; background: #E6F6EF; color: #0B6B49; font-size: 13px; font-weight: 600; flex: none">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#0B6B49" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+            Credential issued
+          </span>
+        </a>
+
+        <a href="RegistryOffer.dc.html" style="background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 16px; text-decoration: none; color: #0E1116">
+          <span style="width: 48px; height: 48px; border-radius: 12px; background: #E8ECFF; display: flex; align-items: center; justify-content: center; flex: none">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#2443E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"></rect><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"></path></svg>
+          </span>
+          <span style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0">
+            <span style="font-size: 17px; font-weight: 600">Research helper</span>
+            <span style="font-size: 14px; color: #4B5260">Other · Basic · <span style="font-family: 'Geist Mono', monospace">agt_Qm81vZ</span></span>
+          </span>
+          <span style="display: flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 16px; background: #F0F1F4; color: #4B5260; font-size: 13px; font-weight: 600; flex: none">No credential yet</span>
+        </a>
+
+        <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: #4B5260">Each agent gets its own credential. Your agent's wallet keeps it; this registry never sees the agent's keys.</p>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

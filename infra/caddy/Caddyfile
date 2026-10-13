@@ -1,0 +1,52 @@
+# TLS with the local mkcert CA (infra/certs). See docs/WIRING.md for the routing contract.
+{
+	auto_https disable_redirects
+}
+
+(local_tls) {
+	tls /certs/tls.pem /certs/tls-key.pem
+}
+
+registry.localtest.me {
+	import local_tls
+	reverse_proxy host.docker.internal:3100
+}
+
+tickets.localtest.me {
+	import local_tls
+
+	# Only the wallet-facing OpenID4VP endpoints of verifier2 are public, on the
+	# same host as the verifier's x509_san_dns client_id.
+	@openid4vp path_regexp ^/verification-session/[^/]+/(request|response)$
+	handle @openid4vp {
+		reverse_proxy verifier-api2:7004
+	}
+
+	handle {
+		reverse_proxy host.docker.internal:3100
+	}
+}
+
+issuer.localtest.me {
+	import local_tls
+
+	# Only the wallet-facing OpenID4VCI endpoints are public. issuer2's management
+	# API (/issuer2/*: profiles with signing keys, offers, sessions) has no auth,
+	# so it stays internal (localhost:7005, used by the Next.js server).
+	@openid4vci path /.well-known/* /openid4vci/* /static/*
+	handle @openid4vci {
+		reverse_proxy issuer-api2:7005
+	}
+
+	handle {
+		respond 404
+	}
+}
+
+wallet.localtest.me {
+	import local_tls
+	reverse_proxy host.docker.internal:8180 {
+		# MCP Streamable HTTP and long-polling must not be buffered.
+		flush_interval -1
+	}
+}

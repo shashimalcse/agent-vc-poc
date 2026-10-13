@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chat with Ada's OpenClaw</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2443E6}a:hover{color:#1A33B8}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFFFF; color: #0E1116; font-family: 'Geist', system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+  <header style="height: 76px; padding: 0 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #E3E6EB; flex: none">
+    <span style="width: 40px; height: 40px; border-radius: 12px; background: #2443E6; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"></rect><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"></path></svg>
+    </span>
+    <span style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 16px; font-weight: 600">Ada's OpenClaw</span>
+      <span style="font-size: 13px; color: #4B5260">Your personal agent</span>
+    </span>
+  </header>
+
+  <div style="flex: 1; padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: #F5F6F8">
+    <div style="align-self: flex-end; max-width: 290px; background: #0E1116; color: #FFFFFF; border-radius: 18px 18px 4px 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+      <span style="font-size: 15px; line-height: 1.4">Here's your credential.</span>
+      <span style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #C9CED6; word-break: break-all">openid-credential-offer://?credential_offer_uri=…</span>
+    </div>
+    <div style="align-self: flex-start; max-width: 290px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 18px 18px 18px 4px; padding: 12px 14px; font-size: 15px; line-height: 1.4">Got it. My wallet now holds an agent credential from Agent Registry.</div>
+
+    <div style="align-self: flex-end; max-width: 290px; background: #0E1116; color: #FFFFFF; border-radius: 18px 18px 4px 18px; padding: 12px 14px; font-size: 15px; line-height: 1.4">Get me two tickets for Friday at Lantern Hall.</div>
+
+    <div style="align-self: flex-start; max-width: 300px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 18px 18px 18px 4px; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+      <span style="font-size: 15px; line-height: 1.4">I picked B4 and B5. To hold them I'm signing in to Lantern Tickets with my wallet. Please approve what my wallet will share:</span>
+      <a href="WalletApprove.dc.html" style="height: 44px; border-radius: 12px; background: #2443E6; color: #FFFFFF; text-decoration: none; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M16 12.5h.01M3 10h18"></path></svg>
+        Open wallet approval
+      </a>
+    </div>
+
+    <div style="align-self: flex-start; max-width: 290px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 18px 18px 18px 4px; padding: 12px 14px; font-size: 15px; line-height: 1.4">Done. Seats B4 and B5 are held for Friday at 20:00.</div>
+  </div>
+
+  <div style="height: 76px; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-top: 1px solid #E3E6EB; flex: none">
+    <label for="chat-input" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Message</label>
+    <input id="chat-input" type="text" placeholder="Message your agent" style="flex: 1; height: 44px; border: 1px solid #C9CED6; border-radius: 22px; padding: 0 16px; font: inherit; font-size: 15px">
+    <button type="button" aria-label="Send" style="width: 44px; height: 44px; border-radius: 22px; border: 0; background: #0E1116; display: flex; align-items: center; justify-content: center; cursor: pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

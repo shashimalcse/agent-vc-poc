@@ -1,0 +1,6 @@
+.gradle/
+build/
+.kotlin/
+data/
+config/wallet.json
+*.key

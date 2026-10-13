@@ -1,0 +1,154 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-10-12T23:05:00Z"
+  },
+  "title": "Agent Registry & Lantern Tickets — UI Design",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1000,
+      "title": "Registry · 1 Your agents",
+      "expand": "fill"
+    },
+    "RegistryOffer.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1000,
+      "title": "Registry · 2 Credential offer",
+      "expand": "fill"
+    },
+    "RegistryIssued.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1000,
+      "title": "Registry · 3 Credential issued",
+      "expand": "fill"
+    },
+    "TicketsEvent.dc.html": {
+      "x": 0,
+      "y": 1420,
+      "w": 1440,
+      "h": 1100,
+      "title": "Lantern · 1 Event and seats",
+      "expand": "fill"
+    },
+    "TicketsCheckout.dc.html": {
+      "x": 1520,
+      "y": 1420,
+      "w": 1440,
+      "h": 1100,
+      "title": "Lantern · 2 Sign in",
+      "expand": "fill"
+    },
+    "TicketsVerify.dc.html": {
+      "x": 3040,
+      "y": 1420,
+      "w": 1440,
+      "h": 1100,
+      "title": "Lantern · 3 Sign in with your wallet",
+      "expand": "fill"
+    },
+    "TicketsHeld.dc.html": {
+      "x": 6080,
+      "y": 1420,
+      "w": 1440,
+      "h": 1100,
+      "title": "Lantern · 5 Seats held",
+      "expand": "fill"
+    },
+    "AgentChat.dc.html": {
+      "x": 0,
+      "y": 2940,
+      "w": 390,
+      "h": 844,
+      "title": "Agent · chat"
+    },
+    "WalletApprove.dc.html": {
+      "x": 470,
+      "y": 2940,
+      "w": 390,
+      "h": 844,
+      "title": "Agent wallet · asks Ada to approve"
+    },
+    "WalletDone.dc.html": {
+      "x": 940,
+      "y": 2940,
+      "w": 390,
+      "h": 844,
+      "title": "Agent wallet · signed in"
+    },
+    "TicketsWelcome.dc.html": {
+      "x": 4560,
+      "y": 1420,
+      "w": 1440,
+      "h": 1100,
+      "title": "Lantern · 4 Welcome, confirm",
+      "expand": "fill"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "RegistryOffer.dc.html",
+    "RegistryIssued.dc.html",
+    "TicketsEvent.dc.html",
+    "TicketsCheckout.dc.html",
+    "TicketsVerify.dc.html",
+    "TicketsWelcome.dc.html",
+    "TicketsHeld.dc.html",
+    "AgentChat.dc.html",
+    "WalletApprove.dc.html",
+    "WalletDone.dc.html"
+  ],
+  "notes": {
+    "rowRegistry": {
+      "x": 0,
+      "y": -300,
+      "text": "Agent Registry — give your agent a credential",
+      "kind": "title1",
+      "maxW": 4480
+    },
+    "rowTickets": {
+      "x": 0,
+      "y": 1120,
+      "text": "Lantern Tickets — sign in with a wallet, person or agent",
+      "kind": "title1",
+      "maxW": 7520
+    },
+    "rowWallet": {
+      "x": 0,
+      "y": 2640,
+      "text": "Agent and its wallet — the owner stays in control",
+      "kind": "title1",
+      "maxW": 1330
+    },
+    "story": {
+      "x": -760,
+      "y": 0,
+      "w": 560,
+      "maxH": 900,
+      "fill": "blue",
+      "size": "m",
+      "text": "STORY (60–90 s promo)\n\n1. Ada registers her personal agent at Agent Registry. One tap issues an agent credential offer.\n2. She pastes the link to her agent. The wallet collects the credential: Registry shows Issued.\n3. \"Get me two tickets for Friday.\" The agent opens Lantern Tickets and picks two seats.\n4. To hold them, checkout asks to sign in with a wallet. A person would share their own credential; the agent shares its agent credential. No password, no CAPTCHA.\n5. The agent's wallet asks Ada, its owner, to approve the sign-in. She approves.\n6. Lantern creates the agent's account: Welcome, Ada's OpenClaw. The agent confirms the order.\n7. Seats held. The agent tells Ada it's done.\n\nLine to land: \"Your agent proves who it is. You decide what it shares.\""
+    },
+    "principles": {
+      "x": -760,
+      "y": 1420,
+      "w": 560,
+      "maxH": 900,
+      "fill": "gray",
+      "size": "m",
+      "text": "DESIGN PRINCIPLES\n\n• One idea per screen. Each screen is a single video beat.\n• State is the hero: Offer created → Issued, Sign in → Welcome → Seats held. Big, legible status, so motion can animate it.\n• Flat 2D, no gradients, no 3D. Shapes, type and one accent per brand.\n• The credential is a physical-feeling card: the same card appears in Registry, wallet and checkout.\n• The wallet is the agent's: it holds the agent's credential and keys, and asks the owner before sharing.\n• One door for everyone: Lantern doesn't ask who is buying. People and agents both sign in with a wallet credential.\n• Agent-readable by design: links are real links with visible text; nothing hides behind a CAPTCHA.\n• Calm trust (Registry: white, ink, trust blue) vs evening energy (Lantern: night ground, lantern amber).\n• Type: Geist for UI, Geist Mono for IDs, Bricolage Grotesque for Lantern's display."
+    }
+  },
+  "designSystems": []
+}

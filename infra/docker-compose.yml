@@ -1,0 +1,50 @@
+# Local counterparties for the agent-credential PoC. See docs/WIRING.md.
+# Next.js (:3100) and the wallet (:8180) run on the host during development.
+name: agent-vc-poc
+
+services:
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs/tls.pem:/certs/tls.pem:ro
+      - ./certs/tls-key.pem:/certs/tls-key.pem:ro
+    networks:
+      poc:
+        aliases:
+          - registry.localtest.me
+          - tickets.localtest.me
+          - issuer.localtest.me
+          - wallet.localtest.me
+
+  issuer-api2:
+    image: waltid/issuer-api2:1.1.1
+    restart: unless-stopped
+    profiles: ["waltid"]
+    environment:
+      ISSUER_API2_PORT: "7005"
+    ports:
+      - "127.0.0.1:7005:7005"
+    volumes:
+      - ./waltid/issuer2/config:/waltid-issuer-api2/config
+      - ./certs:/certs:ro
+    networks: [poc]
+
+  verifier-api2:
+    image: waltid/verifier-api2:1.1.1
+    restart: unless-stopped
+    profiles: ["waltid"]
+    environment:
+      VERIFIER_API2_PORT: "7004"
+    ports:
+      - "127.0.0.1:7004:7004"
+    volumes:
+      - ./waltid/verifier2/config:/waltid-verifier-api2/config
+      - ./certs:/certs:ro
+    networks: [poc]
+
+networks:
+  poc: {}

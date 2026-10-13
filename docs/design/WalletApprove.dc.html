@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wallet · Approve sharing</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2443E6}a:hover{color:#1A33B8}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FFFFFF; color: #0E1116; font-family: 'Geist', system-ui, sans-serif; display: flex; flex-direction: column; padding: 28px 20px 24px; gap: 24px">
+  <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #4B5260">
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#0E1116" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M16 12.5h.01M3 10h18"></path></svg>
+    Ada's OpenClaw · agent wallet
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <h1 style="margin: 0; font-size: 30px; line-height: 1.15; font-weight: 600; letter-spacing: -0.025em">Sign in to Lantern Tickets?</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #4B5260">Your agent's wallet asks you before it signs in to Lantern Tickets with the agent's credential.</p>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: #E6F6EF">
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#0B6B49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"></path><path d="M8.5 12l2.5 2.5 4.5-4.5"></path></svg>
+    <span style="display: flex; flex-direction: column; gap: 2px">
+      <span style="font-size: 14px; font-weight: 600; color: #0B6B49">Verified requester</span>
+      <span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #0B6B49">lantern-tickets.example</span>
+    </span>
+  </div>
+
+  <section aria-labelledby="share-title" style="display: flex; flex-direction: column; gap: 4px">
+    <h2 id="share-title" style="margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: #4B5260">WHAT WILL BE SHARED</h2>
+    <div style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E3E6EB; font-size: 15px"><span style="color: #4B5260">Agent ID</span><span style="font-family: 'Geist Mono', monospace">agt_7Hk2pQ</span></div>
+    <div style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E3E6EB; font-size: 15px"><span style="color: #4B5260">Agent name</span><span>Ada's OpenClaw</span></div>
+    <div style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E3E6EB; font-size: 15px"><span style="color: #4B5260">Runs on</span><span>OpenClaw</span></div>
+    <div style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #E3E6EB; font-size: 15px"><span style="color: #4B5260">Operator</span><span>Ada Lovelace</span></div>
+    <div style="display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; font-size: 15px"><span style="color: #4B5260">Accreditation</span><span>Verified</span></div>
+  </section>
+
+  <p style="margin: auto 0 0; font-size: 13px; line-height: 1.5; color: #4B5260">Only you can approve this. The wallet holds your agent's credential; the agent itself never sees it.</p>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+    <button type="button" style="height: 52px; border-radius: 14px; border: 1px solid #C9CED6; background: #FFFFFF; color: #0E1116; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer">Decline</button>
+    <a href="WalletDone.dc.html" style="height: 52px; border-radius: 14px; background: #0E1116; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center">Approve</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

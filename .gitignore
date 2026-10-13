@@ -1,0 +1,16 @@
+# Secrets and local state
+infra/certs/*-key.pem
+infra/certs/*.jwk.json
+!infra/certs/*.public.jwk.json
+wallet/config/wallet.json
+wallet/data/
+web/.data/
+.env
+.env.local
+
+# Build output
+node_modules/
+.next/
+wallet/build/
+wallet/.gradle/
+.DS_Store

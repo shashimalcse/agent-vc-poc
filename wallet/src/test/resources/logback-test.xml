@@ -1,0 +1,16 @@
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder><pattern>%d{HH:mm:ss.SSS} %-5level %logger{20} - %msg%n</pattern></encoder>
+  </appender>
+  <!-- Third-party loggers stay quiet: they may log request content, which can include offers or presentations. -->
+  <logger name="io.modelcontextprotocol" level="WARN"/>
+  <logger name="eu.europa.ec.eudi" level="WARN"/>
+  <logger name="io.ktor" level="WARN"/>
+  <logger name="io.netty" level="WARN"/>
+  <logger name="okhttp3" level="WARN"/>
+  <logger name="FeatureRegistry[Tool]" level="WARN"/>
+  <logger name="FeatureRegistry[Prompt]" level="WARN"/>
+  <logger name="FeatureRegistry[Resource]" level="WARN"/>
+  <logger name="FeatureRegistry[ResourceTemplate]" level="WARN"/>
+  <root level="INFO"><appender-ref ref="STDOUT"/></root>
+</configuration>

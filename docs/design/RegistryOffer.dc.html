@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent Registry · Credential offer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F6F8}
+a{color:#2443E6}a:hover{color:#1A33B8}
+</style>
+</helmet>
+<div style="min-height: 1000px; background: #F5F6F8; color: #0E1116; font-family: 'Geist', system-ui, sans-serif; display: flex; flex-direction: column">
+  <header style="background: #FFFFFF; border-bottom: 1px solid #E3E6EB">
+    <div style="max-width: 1120px; margin: 0 auto; padding: 0 32px; height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #0E1116">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="7" fill="#2443E6"></rect><path d="M8 18.5 L12.5 9.5 L14 12.5 L15.5 9.5 L20 18.5" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <span style="font-weight: 600; font-size: 18px; letter-spacing: -0.01em">Agent Registry</span>
+      </a>
+      <nav style="display: flex; align-items: center; gap: 24px; font-size: 15px">
+        <a href="Main.dc.html" style="color: #0E1116; text-decoration: none; font-weight: 500">Your agents</a>
+        <span style="display: flex; align-items: center; gap: 10px; color: #4B5260">
+          <span style="width: 32px; height: 32px; border-radius: 16px; background: #E8ECFF; color: #2443E6; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600">AL</span>
+          Ada Lovelace
+        </span>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width: 1120px; width: 100%; margin: 0 auto; padding: 48px 32px 96px; box-sizing: border-box; display: flex; flex-direction: column; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <a href="Main.dc.html" style="font-size: 15px; text-decoration: none; display: flex; align-items: center; gap: 6px">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+        Your agents
+      </a>
+      <h1 style="margin: 0; font-size: 44px; line-height: 1.1; font-weight: 600; letter-spacing: -0.03em">Ada's OpenClaw</h1>
+      <p style="margin: 0; font-size: 17px; color: #4B5260">OpenClaw · Verified · operated by Ada Lovelace</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 32px; align-items: start">
+      <section aria-label="Agent credential preview" style="display: flex; flex-direction: column; gap: 16px">
+        <div style="border: 2px dashed #9AA6C8; border-radius: 22px; padding: 28px; display: flex; flex-direction: column; gap: 28px; background: #FFFFFF; min-height: 270px; box-sizing: border-box">
+          <div style="display: flex; align-items: center; justify-content: space-between">
+            <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #5B6B99">AGENT CREDENTIAL</span>
+            <span style="display: flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 14px; background: #FFF4E0; color: #8A5300; font-size: 13px; font-weight: 600">Not collected yet</span>
+          </div>
+          <div style="font-size: 30px; font-weight: 600; letter-spacing: -0.02em; color: #5B6B99">Ada's OpenClaw</div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px">
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #6B7488">Runs on</span><span style="font-size: 15px; color: #5B6B99">OpenClaw</span></div>
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #6B7488">Operator</span><span style="font-size: 15px; color: #5B6B99">Ada Lovelace</span></div>
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #6B7488">Accreditation</span><span style="font-size: 15px; color: #5B6B99">Verified</span></div>
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #6B7488">Agent ID</span><span style="font-size: 15px; color: #5B6B99; font-family: 'Geist Mono', monospace">agt_7Hk2pQ</span></div>
+          </div>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4B5260">Websites always see the agent ID. The wallet decides whether to show the name, runtime, operator and accreditation.</p>
+      </section>
+
+      <section aria-labelledby="offer-title" style="background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 24px">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <h2 id="offer-title" style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em">Send this credential to your agent</h2>
+          <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #4B5260">Paste the link into your chat with the agent. Its wallet collects the credential. The link works once.</p>
+        </div>
+
+        <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap">
+          <svg width="152" height="152" viewBox="0 0 29 29" role="img" aria-label="QR code for the credential offer" shape-rendering="crispEdges" style="flex: none; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 12px; padding: 8px">
+            <rect x="0" y="0" width="29" height="29" fill="#FFFFFF"></rect>
+            <path fill="#0E1116" d="M1 1h7v7H1zM2 2v5h5V2zM3 3h3v3H3zM21 1h7v7h-7zM22 2v5h5V2zM23 3h3v3h-3zM1 21h7v7H1zM2 22v5h5v-5zM3 23h3v3H3zM10 1h1v1h-1zM12 1h2v1h-2zM16 2h1v2h-1zM10 3h2v1h-2zM13 4h3v1h-3zM18 1h1v3h-1zM10 6h1v2h-1zM12 6h1v1h-1zM14 6h3v2h-3zM18 6h1v1h-1zM1 10h2v1H1zM4 10h1v2H4zM6 10h3v1H6zM10 10h3v2h-3zM14 9h2v1h-2zM17 10h2v2h-2zM20 10h1v1h-1zM22 10h3v1h-3zM26 10h2v2h-2zM2 13h3v1H2zM7 12h2v3H7zM11 13h1v2h-1zM13 13h3v1h-3zM17 14h1v2h-1zM19 13h3v2h-3zM24 13h1v3h-1zM27 14h1v2h-1zM1 16h1v2H1zM3 16h3v1H3zM9 16h2v2H9zM12 16h1v1h-1zM14 16h2v3h-2zM20 17h2v1h-2zM23 17h1v2h-1zM25 17h3v1h-3zM10 19h3v1h-3zM17 19h2v2h-2zM20 20h3v1h-3zM26 19h2v3h-2zM10 21h1v3h-1zM12 22h2v1h-2zM15 21h1v2h-1zM18 22h3v2h-3zM22 23h3v1h-3zM10 25h3v1h-3zM14 24h2v4h-2zM17 25h1v3h-1zM19 26h3v2h-3zM23 25h2v2h-2zM26 24h2v1h-2zM12 27h1v1h-1zM26 26h2v2h-2z"></path>
+          </svg>
+          <div style="display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 220px">
+            <div style="display: flex; align-items: center; gap: 8px; color: #8A5300; font-size: 15px; font-weight: 600">
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#8A5300" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              Waiting for your agent's wallet
+            </div>
+            <p style="margin: 0; font-size: 14px; color: #4B5260">Expires in 9:42</p>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <label for="offer-link" style="font-size: 14px; font-weight: 500">Credential offer link</label>
+          <div style="display: flex; gap: 8px">
+            <input id="offer-link" type="text" readonly value="openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.localtest.me%2Fopenid4vci%2Fcredential-offer%3Fid%3Df6acd15b" style="flex: 1; min-width: 0; height: 48px; border: 1px solid #C9CED6; border-radius: 10px; padding: 0 14px; font-family: 'Geist Mono', monospace; font-size: 13px; color: #0E1116; background: #F5F6F8">
+            <button type="button" style="height: 48px; padding: 0 20px; border: 0; border-radius: 10px; background: #2443E6; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; flex: none">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"></path></svg>
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <ol style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-top: 1px solid #E3E6EB; padding-top: 24px">
+          <li style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #2443E6">01</span><span style="font-size: 14px; line-height: 1.4">Copy the link</span></li>
+          <li style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #2443E6">02</span><span style="font-size: 14px; line-height: 1.4">Send it to your agent</span></li>
+          <li style="display: flex; flex-direction: column; gap: 6px"><span style="font-family: 'Geist Mono', monospace; font-size: 13px; color: #2443E6">03</span><span style="font-size: 14px; line-height: 1.4">Its wallet collects the credential</span></li>
+        </ol>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

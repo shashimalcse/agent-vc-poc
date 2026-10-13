@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lantern Tickets · Seats held</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#131117}
+a{color:#FFC266}a:hover{color:#FFD699}
+</style>
+</helmet>
+<div style="min-height: 1100px; background: #131117; color: #F4EFE8; font-family: 'Geist', system-ui, sans-serif; display: flex; flex-direction: column">
+  <header style="border-bottom: 1px solid #2B2732">
+    <div style="max-width: 1180px; margin: 0 auto; padding: 0 32px; height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+      <a href="TicketsEvent.dc.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #F4EFE8">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M11 4h8M15 4v3" stroke="#FFB547" stroke-width="2" stroke-linecap="round"></path><rect x="7" y="7" width="16" height="19" rx="5" fill="none" stroke="#FFB547" stroke-width="2"></rect><circle cx="15" cy="16.5" r="4" fill="#FFB547"></circle></svg>
+        <span style="font-family: 'Bricolage Grotesque', 'Geist', sans-serif; font-weight: 800; font-size: 21px; letter-spacing: -0.02em">Lantern Tickets</span>
+      </a>
+      <ol style="margin: 0; padding: 0; list-style: none; display: flex; gap: 20px; font-size: 14px; color: #B9B1C4">
+        <li>Seats</li>
+        <li>Sign in</li>
+        <li>Confirm</li>
+        <li aria-current="step" style="color: #FFB547; font-weight: 600">Done</li>
+      </ol>
+    </div>
+  </header>
+
+  <main style="max-width: 1180px; width: 100%; margin: 0 auto; padding: 72px 32px 96px; box-sizing: border-box; display: flex; flex-direction: column; gap: 56px">
+    <div style="display: flex; flex-direction: column; gap: 20px">
+      <span style="width: 64px; height: 64px; border-radius: 32px; background: #FFB547; display: flex; align-items: center; justify-content: center">
+        <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#131117" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+      </span>
+      <h1 style="margin: 0; font-family: 'Bricolage Grotesque', 'Geist', sans-serif; font-weight: 800; font-size: 96px; line-height: 0.95; letter-spacing: -0.045em">Seats held.</h1>
+      <p style="margin: 0; font-size: 20px; line-height: 1.5; color: #B9B1C4; max-width: 640px">Two seats for Friday at Lantern Hall, held on the account of an accredited agent.</p>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: stretch">
+      <section aria-labelledby="tickets-title" style="flex: 1 1 360px; display: flex; flex-direction: column; gap: 16px">
+        <h2 id="tickets-title" style="margin: 0; font-size: 18px; font-weight: 600; color: #B9B1C4">Your tickets</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+          <div style="border-radius: 20px; background: #FFB547; color: #131117; padding: 24px; display: flex; flex-direction: column; gap: 28px">
+            <span style="font-family: 'Geist Mono', monospace; font-size: 13px; letter-spacing: 0.06em">FRI 16 OCT · 20:00</span>
+            <span style="font-family: 'Bricolage Grotesque', 'Geist', sans-serif; font-weight: 800; font-size: 56px; line-height: 1; letter-spacing: -0.03em">B4</span>
+            <span style="font-size: 14px; font-weight: 500">Row B · Seat 4</span>
+          </div>
+          <div style="border-radius: 20px; background: #FFB547; color: #131117; padding: 24px; display: flex; flex-direction: column; gap: 28px">
+            <span style="font-family: 'Geist Mono', monospace; font-size: 13px; letter-spacing: 0.06em">FRI 16 OCT · 20:00</span>
+            <span style="font-family: 'Bricolage Grotesque', 'Geist', sans-serif; font-weight: 800; font-size: 56px; line-height: 1; letter-spacing: -0.03em">B5</span>
+            <span style="font-size: 14px; font-weight: 500">Row B · Seat 5</span>
+          </div>
+        </div>
+        <p style="margin: 0; font-size: 15px; color: #B9B1C4">This agent now holds 2 of the 4 tickets allowed per agent for this show.</p>
+      </section>
+
+      <section aria-labelledby="agent-title" style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 16px">
+        <h2 id="agent-title" style="margin: 0; font-size: 18px; font-weight: 600; color: #B9B1C4">Placed by</h2>
+        <div style="border-radius: 22px; padding: 28px; display: flex; flex-direction: column; gap: 24px; background: #2443E6; color: #FFFFFF; font-family: 'Geist', system-ui, sans-serif">
+          <div style="display: flex; align-items: center; justify-content: space-between">
+            <span style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #D6DDFF">AGENT CREDENTIAL · VERIFIED</span>
+            <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="7" fill="#FFFFFF"></rect><path d="M8 18.5 L12.5 9.5 L14 12.5 L15.5 9.5 L20 18.5" fill="none" stroke="#2443E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div style="font-size: 30px; font-weight: 600; letter-spacing: -0.02em">Ada's OpenClaw</div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px">
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #D6DDFF">Runs on</span><span style="font-size: 15px; font-weight: 500">OpenClaw</span></div>
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #D6DDFF">Operator</span><span style="font-size: 15px; font-weight: 500">Ada Lovelace</span></div>
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #D6DDFF">Accreditation</span><span style="font-size: 15px; font-weight: 500">Verified</span></div>
+            <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #D6DDFF">Agent ID</span><span style="font-size: 15px; font-weight: 500; font-family: 'Geist Mono', monospace">agt_7Hk2pQ</span></div>
+          </div>
+          <div style="font-size: 13px; color: #D6DDFF; border-top: 1px solid #4D66EC; padding-top: 16px">Issued by Agent Registry · used to sign in to Lantern Tickets at 22:35</div>
+        </div>
+      </section>
+    </div>
+
+    <div style="display: flex; gap: 16px; flex-wrap: wrap; border-top: 1px solid #2B2732; padding-top: 28px; align-items: center">
+      <span style="font-family: 'Geist Mono', monospace; font-size: 14px; color: #B9B1C4">Order ord_pED7dh</span>
+      <a href="TicketsEvent.dc.html" style="margin-left: auto; height: 48px; padding: 0 22px; border-radius: 12px; border: 1px solid #6E6679; color: #F4EFE8; font-size: 15px; font-weight: 600; text-decoration: none; display: flex; align-items: center">Back to the event</a>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

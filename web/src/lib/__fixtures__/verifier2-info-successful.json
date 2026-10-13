@@ -1,0 +1,68 @@
+{
+  "id": "05ea4c7b-035d-4111-919a-d36633b33a14",
+  "status": "SUCCESSFUL",
+  "policy_results": {
+    "overallSuccess": true,
+    "vc_policies": [
+      {
+        "policy": {
+          "id": "signature"
+        },
+        "success": true,
+        "result": {
+          "verification_result": true,
+          "successful_issuer_public_key": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "mCF1HfQYsQEjnc_PvvISxyA1KQty1CCP7AU2kyw7bwQ",
+            "y": "x52m180jH9Wky3qUpUei764CnIFdcwfGkDjuXxIjXLM"
+          }
+        },
+        "query_id": "agent",
+        "credential_index": 0
+      }
+    ]
+  },
+  "presented_credentials": {
+    "agent": [
+      {
+        "type": "vc-sd_jwt",
+        "format": "dc+sd-jwt",
+        "issuer": "https://issuer.localtest.me/openid4vci",
+        "credentialData": {
+          "agent_id": "agt_test01",
+          "nbf": 1791763200,
+          "exp": 1799596800,
+          "iat": 1791763200,
+          "_sd_alg": "sha-256",
+          "iss": "https://issuer.localtest.me/openid4vci",
+          "cnf": {
+            "jwk": {
+              "kty": "EC",
+              "crv": "P-256",
+              "x": "3ed8Ca9mSq4TOs8XmkqyV_QcBNn0g37NCO62Jqw-dU0",
+              "y": "M4-JLkmpLsPLKvbdt58Iadp8cG13i7gk9GiV5AYmhgI",
+              "kid": "pA9q7NPtx_9ymQDtMs6MTawtDEL6b7OrvVkCRwGElIY"
+            }
+          },
+          "vct": "https://registry.localtest.me/credentials/agent/v1",
+          "agent_name": "Test Agent",
+          "provider": "OpenClaw",
+          "accreditation_level": "verified",
+          "operator": "Alice"
+        },
+        "signature": {
+          "type": "signature-sd_jwt",
+          "jwtHeader": {
+            "alg": "ES256",
+            "kid": "oaZ1DtfQD0XW4HNr9C7BQewMe7inovFvh8vkF56lkqU",
+            "typ": "dc+sd-jwt",
+            "x5c": [
+              "MIID5TCCAk2gAwIBAgIQRvA4Z6n2GhLQ73KAR5+cWjANBgkqhkiG9w0BAQsFADCBxTEeMBwGA1UEChMVbWtjZXJ0IGRldmVsb3BtZW50IENBMU0wSwYDVQQLDER0aGlsaW5hc2hhc2hpbWFsc2VuYXJhdGhAdGhpbGluYXMubG9jYWwgKFRoaWxpbmEgU2hhc2hpbWFsIFNlbmFyYXRoKTFUMFIGA1UEAwxLbWtjZXJ0IHRoaWxpbmFzaGFzaGltYWxzZW5hcmF0aEB0aGlsaW5hcy5sb2NhbCAoVGhpbGluYSBTaGFzaGltYWwgU2VuYXJhdGgpMB4XDTI2MTAxMjE2MzA0NloXDTI5MDExMjE2MzA0NloweDEnMCUGA1UEChMebWtjZXJ0IGRldmVsb3BtZW50IGNlcnRpZmljYXRlMU0wSwYDVQQLDER0aGlsaW5hc2hhc2hpbWFsc2VuYXJhdGhAdGhpbGluYXMubG9jYWwgKFRoaWxpbmEgU2hhc2hpbWFsIFNlbmFyYXRoKTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJghdR30GLEBI53Pz77yEscgNSkLctQgj+wFNpMsO28Ex52m180jH9Wky3qUpUei764CnIFdcwfGkDjuXxIjXLOjaDBmMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDATAfBgNVHSMEGDAWgBT65PrGXet+GFtSjyTX5etkuBytCzAeBgNVHREEFzAVghNpc3N1ZXIubG9jYWx0ZXN0Lm1lMA0GCSqGSIb3DQEBCwUAA4IBgQB+U+TUsdARA6NsApnoh2gcPPV17R/XbMFpRXwW5lw+Kw86rmI2PP13X6/N+iU4sSBLR4Tfn0uZwzxYg3f9p6YOshdgHZq8RX23r+gzizGUWgwixIsSPRt+XUF48uAZmw6iKA96OEMicUrybiGK20cjn+cjDKoCGjj2EQoi8xNs7rNCHijt4QgLNpQEVr5BZq07TuyMFi1x3KZd53/sxIb4jy5/CQDmRgc+BfbWmyxaMkztZqqNbApNwN+ua6mxGp+JAwPy+6QtyZcRTmdgG43hYgSv18SFaLvADzEZNLTeHo3XPUmgb7UZRk5B0zq+uIKGvXaSInetaoqTgtQtBKwLH1wKztJoAqc0zQsA1mUMeS4kUG0CwO5UYI+wcQNHwXN3vYOB/L24tbdg7lDqxyLN3Y0kQDvHRBTQ1b2VegM/V4Z30wct/MsMRdd5425FZ/DW/cULdHDtSz8/Ab/eBjfF46hAjb2bQB9TWwvSqqRf4O411USOh60UABWYy9YiYPo="
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

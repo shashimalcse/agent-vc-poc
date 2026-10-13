@@ -1,0 +1,49 @@
+{
+  "listen": { "host": "127.0.0.1", "port": 8180 },
+  "public_base_url": "https://wallet.localtest.me",
+  "allowed_hosts": ["wallet.localtest.me", "localhost", "127.0.0.1"],
+  "trust_anchors": ["../../infra/certs/rootCA.pem"],
+  "trust_system_cas": false,
+  "allowPrivateNetworks": true,
+  "store": {
+    "path": "../data/wallet.store",
+    "key_env": "A2WP_STORE_KEY",
+    "key_file": "../data/store.key"
+  },
+  "limits": {
+    "operation_ttl_seconds": 600,
+    "interaction_ttl_seconds": 300,
+    "retention_seconds": 3600,
+    "http_timeout_seconds": 15,
+    "http_max_response_bytes": 1048576,
+    "max_active_operations_per_agent": 10,
+    "max_input_chars": 16384
+  },
+  "principals": [
+    { "id": "user-1", "name": "Ada Lovelace", "display_name": "Ada", "approval_passcode_sha256": null }
+  ],
+  "agents": [
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "api_key_sha256": "REPLACE_WITH_SHA256_FROM_infra/scripts/dev-keys.sh",
+      "principal": "user-1",
+      "policy": {
+        "allowed_issuers": [
+          {
+            "issuer": "https://issuer.localtest.me/openid4vci",
+            "vcts": ["https://registry.localtest.me/credentials/agent/v1"]
+          }
+        ],
+        "allowed_verifiers": [
+          {
+            "client_id": "x509_san_dns:tickets.localtest.me",
+            "name": "Lantern Tickets",
+            "claims": ["agent_id", "agent_name", "provider", "operator", "accreditation_level"]
+          }
+        ],
+        "require_approval": "first_presentation_to_verifier"
+      }
+    }
+  ]
+}
