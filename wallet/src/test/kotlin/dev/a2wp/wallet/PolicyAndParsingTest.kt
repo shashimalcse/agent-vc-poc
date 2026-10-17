@@ -97,7 +97,7 @@ class RequestParsingTest {
             "x".repeat(20_000),
         ).forEach { s ->
             val e = assertFailsWith<RequestError>(s.take(60)) { RequestParsing.parseOffer(s) }
-            assertEquals(ErrorCodes.INVALID_REQUEST, e.code)
+            assertEquals(ErrorCodes.UNSUPPORTED_REQUEST, e.code)
         }
     }
 
@@ -122,17 +122,30 @@ class RequestParsingTest {
     @Test
     fun `bad presentation requests`() {
         val cases = mapOf(
-            "https://tickets.localtest.me/" to ErrorCodes.INVALID_REQUEST, // no client_id
-            "openid4vp://?client_id=a" to ErrorCodes.UNSUPPORTED_PROTOCOL, // unsigned
-            "openid4vp://?client_id=a&request_uri=${enc("http://a.example/r")}" to ErrorCodes.INVALID_REQUEST,
-            "openid4vp://?client_id=a&request=x&request_uri=${enc("https://a.example/r")}" to ErrorCodes.INVALID_REQUEST,
-            "openid4vp://?client_id=a&client_id=b&request_uri=${enc("https://a.example/r")}" to ErrorCodes.INVALID_REQUEST,
-            "openid4vp://?client_id=a&request_uri=${enc("https://a.example/r")}&request_uri_method=put" to ErrorCodes.INVALID_REQUEST,
-            "mailto:x@example.com" to ErrorCodes.INVALID_REQUEST,
+            "https://tickets.localtest.me/" to ErrorCodes.UNSUPPORTED_REQUEST, // no client_id
+            "openid4vp://?client_id=a" to ErrorCodes.UNSUPPORTED_REQUEST, // unsigned
+            "openid4vp://?client_id=a&request_uri=${enc("http://a.example/r")}" to ErrorCodes.UNSUPPORTED_REQUEST,
+            "openid4vp://?client_id=a&request=x&request_uri=${enc("https://a.example/r")}" to ErrorCodes.UNSUPPORTED_REQUEST,
+            "openid4vp://?client_id=a&client_id=b&request_uri=${enc("https://a.example/r")}" to ErrorCodes.UNSUPPORTED_REQUEST,
+            "openid4vp://?client_id=a&request_uri=${enc("https://a.example/r")}&request_uri_method=put" to ErrorCodes.UNSUPPORTED_REQUEST,
+            "mailto:x@example.com" to ErrorCodes.UNSUPPORTED_REQUEST,
         )
         cases.forEach { (url, code) ->
             val e = assertFailsWith<RequestError>(url) { RequestParsing.parsePresentationRequest(url) }
             assertEquals(code, e.code, url)
+        }
+    }
+
+    @Test
+    fun `the wallet identifies a request from the string alone`() {
+        val vp = "openid4vp://?client_id=x509_san_dns%3Aa.example&request_uri=${enc("https://a.example/r")}"
+        assertIs<ParsedRequest.Presentation>(RequestParsing.classify(vp))
+        assertIs<ParsedRequest.Presentation>(RequestParsing.classify("https://wallet.example/cb?client_id=x509_san_dns%3Aa.example&request_uri=${enc("https://a.example/r")}"))
+        assertIs<ParsedRequest.Offer>(RequestParsing.classify("openid-credential-offer://?credential_offer_uri=${enc("https://issuer.example/o/1")}"))
+        assertIs<ParsedRequest.Offer>(RequestParsing.classify("https://issuer.example/o/1"))
+        listOf("hello", "mailto:x@example.com", "", "ftp://a.example/x").forEach { s ->
+            val e = assertFailsWith<RequestError>(s) { RequestParsing.classify(s) }
+            assertEquals(ErrorCodes.UNSUPPORTED_REQUEST, e.code)
         }
     }
 }

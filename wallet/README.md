@@ -44,7 +44,7 @@ Relative paths in the config resolve against the config file's directory. These 
 | `allowPrivateNetworks` | Lets outbound calls reach loopback and private addresses. It must be `true` in dev because `*.localtest.me` resolves to 127.0.0.1. Link-local, multicast and `0.0.0.0/8` stay blocked either way. |
 | `store` | Encrypted store file. The AES-256 key (base64) is read from the env var named by `key_env` (default `A2WP_STORE_KEY`), else from `key_file`, which is created with mode 600 if it is missing. |
 | `limits` | Operation TTL (600 s), interaction TTL (300 s), retention, HTTP timeout and size limit, active operations per agent, and maximum input length. |
-| `principals[]` | The agents' owners, who approve. `display_name` (e.g. "Ada") is optional and not shown in page headers. An optional `approval_passcode_sha256` makes the approval page ask for a passcode, so that holding the link is not enough to approve. |
+| `principals[]` | The agents' owners, who approve. `display_name` (e.g. "Ada") is optional and not shown in page headers. `approval_passcode_sha256` is required (A2WP -01): the approval page asks for the passcode, so holding the link is not enough to approve. The example config uses the passcode `change-me`; in dev the passcode is in `data/dev-approval-passcode.txt`. |
 | `agents[]` | `id`, `name`, `api_key_sha256`, `principal`, `policy`. |
 | `policy.allowed_issuers[]` | `issuer`: the exact `credential_issuer` / `iss` string (here `https://issuer.localtest.me/openid4vci`). `vcts`: the accepted types. Anything not listed is denied. |
 | `policy.allowed_verifiers[]` | `client_id`: the verified client_id with its prefix (`x509_san_dns:tickets.localtest.me`). `claims`: the top-level claims this verifier may receive. `name`: a label for the approval page. |
@@ -88,20 +88,23 @@ The transport is stateless: every POST is authenticated on its own, and the agen
 
 ### Tools
 
+One tool per A2WP -01 call (draft-senarath-a2wp-01):
+
 | Tool | Input | Result |
 | --- | --- | --- |
-| `acquire_credential` | `{ "offer": "openid-credential-offer://..." }` (or a bare https `credential_offer_uri`) | operation |
-| `present_credential` | `{ "request": "openid4vp://..." }` (or an https authorization request URL) | operation |
-| `get_operation` | `{ "operation_id": "op_...", "wait_seconds": 0-25 }` | operation; long-polls for a status change |
-| `cancel_operation` | `{ "operation_id": "op_..." }` | cancelled operation, or `not-cancellable` |
+| `submit` | `{ "request": "..." }`: an offer or request link exactly as received (`openid-credential-offer://`, `openid4vp://` or https) | operation; the wallet works out which it is |
+| `get` | `{ "id": "op_...", "wait_seconds": 0-25 }` | operation; long-polls for a change |
+| `cancel` | `{ "id": "op_..." }` | cancelled operation, or `not-cancellable` |
 
-Every result has `structuredContent.operation`, as in WIRING.md, and a one-line text that tells the agent what to do next. A request rejected before an operation exists returns `isError: true` and `structuredContent.error`. When the status is `interaction_required`, the agent sends `interaction.interaction_uri` to the user and keeps polling. It must not open the link itself.
+Every result has `structuredContent.operation` (`id`, `status`, `interaction`, `continuation`, `error`), as in WIRING.md, and a one-line text that tells the agent what to do next. A rejection returns `isError: true` and `structuredContent.error`. When a pending operation has an `interaction`, the agent sends `interaction.uri` to the user and keeps polling; it must not open the link itself. When an operation has a `continuation` (the verifier's `redirect_uri`, unchanged), the agent opens it in the browser where it found the request.
 
 ### Operation model
 
-- **States:** `pending → processing ⇄ interaction_required → completed | failed | cancelled`. Terminal states never change.
-- **Commit point:** immediately before the wallet retains credentials (acquire) or posts the presentation (present). Cancelling is possible only before it. Expiry before the commit point gives `failed / operation-expired`; after it, `failed / outcome-unknown`. A failure during the presentation POST also gives `outcome-unknown`.
-- **Retries:** the same offer or request URL from the same agent returns the existing operation while that operation is running or completed. A failed or cancelled one does not block a new attempt.
+- **States:** `pending → completed | failed | cancelled` on the wire. Internally `pending` covers processing and waiting for the user (then it carries an `interaction`). Terminal states never change.
+- **Commit point:** redeeming the pre-authorized code (issuance; credentials are kept only once all of them are obtained and validated) or posting the presentation. Cancelling is possible only before it. Expiry before the commit point gives `failed / expired`; after it, `failed / outcome-unknown`. A failure during the presentation POST also gives `outcome-unknown`.
+- **Retries:** the identical request string from the same agent returns its most recent operation, unless that one ended before its commit point (cancelled, expired or failed before it). So an operation that failed after the commit point is never repeated: nothing is redeemed or disclosed twice.
+- **Errors:** the eight A2WP -01 codes: `unsupported-request`, `denied`, `no-matching-credential`, `expired`, `processing-error`, `outcome-unknown`, `not-found`, `not-cancellable`.
+- **Approval:** every principal an agent uses must have `approval_passcode_sha256`; the wallet refuses to start otherwise (A2WP -01: the wallet authenticates the principal during an interaction).
 - **Before the commit point, acquire checks:** the issuer and `vct` are allowed, the issuer signature is valid (`x5c` to the trust anchor with a DNS SAN equal to the host of `iss`, or `jwt-vc-issuer` metadata), `iss` equals `credential_issuer`, `vct` is the offered type, `cnf.jwk` equals the fresh holder key, and the credential has not expired.
 - **Present:** the EUDI library authenticates `client_id` from the signed request and its `x5c` chain to the trust anchor. Policy is checked against that verified client_id. The wallet discloses the claims that are both requested and allowed for that verifier. Non-selectively-disclosable claims, here `agent_id`, are always included. DCQL `credential_sets`: for each required set, the wallet uses the first option it can satisfy and skips optional sets. `claim_sets`: the wallet uses the first set whose claims are all allowed.
 
@@ -112,7 +115,7 @@ Every result has `structuredContent.operation`, as in WIRING.md, and a one-line 
 **Behaviour:**
 - **GET has no side effects,** because chat apps prefetch links. Only POST approves or declines.
 - **POST requests** from another `Origin` are refused.
-- **The passcode,** when set, allows 5 attempts. After that, the request is declined.
+- **The passcode** allows 5 attempts. After that, the request is declined.
 
 **Approval screen for a presentation:**
 - **Header:** "<agent name> · agent wallet", using the agent's configured name (e.g. "OpenClaw · agent wallet"). This is the agent's wallet (approvals go to its owner).
@@ -122,7 +125,7 @@ Every result has `structuredContent.operation`, as in WIRING.md, and a one-line 
 - **"WHAT WILL BE SHARED":** label and value rows (Agent ID, Agent name, Runs on, Operator, Accreditation), then the withheld claims, if any.
 - **Footer:** "Only you can approve this. The wallet holds your agent's credential; the agent itself never sees it.", then the Decline and Approve buttons and the expiry time.
 
-**Approval screen for a `tx_code` offer:** the same layout with the title "Add a credential from <issuer host>?" and the explanation "Your agent's wallet asks you before adding a credential from <issuer host>.", an "Allowed issuer" badge, the credential type and a code field. When a passcode is configured, the screen also has a passcode field.
+**Approval screen for a `tx_code` offer:** the same layout with the title "Add a credential from <issuer host>?" and the explanation "Your agent's wallet asks you before adding a credential from <issuer host>.", an "Allowed issuer" badge, the credential type and a code field. The screen also has the passcode field.
 
 **Result pages:**
 - **Shared:** "Shared with <name>", with the blue credential card (agent name, "<n> details shared · HH:mm").
@@ -160,9 +163,11 @@ scripts/reset.sh                                             # back up data/wall
 
 ## Credential ownership
 
-This is the agent's wallet (approvals go to its owner). A credential and its holder key belong to the agent whose API key acquired it, and `present_credential` only ever considers that agent's credentials. Two agents of the same principal cannot use each other's credentials. The principal's only role is to approve, through the approval page and the optional passcode. Approval memory is kept per (agent, verifier) together with the approved claim set. When several of an agent's credentials match a request, the wallet uses the most recently acquired one.
+This is the agent's wallet (approvals go to its owner). A credential and its holder key belong to the agent whose API key acquired it, and a presentation only ever considers that agent's credentials. Two agents of the same principal cannot use each other's credentials. The principal's only role is to approve, through the approval page and its passcode. Approval memory is kept per (agent, verifier) together with the approved claim set. When several of an agent's credentials match a request, the wallet uses the most recently acquired one.
 
 ## Observations
+
+These were recorded while running draft -00's tools (`acquire_credential`, `present_credential`, `get_operation`); several of them shaped -01.
 
 These are findings for the A2WP draft, from running this wallet against walt.id issuer2/verifier2 1.1.1 on 12 Oct 2026. They come from the wallet side and a scripted agent. OpenClaw behaviour is not observed yet.
 

@@ -56,7 +56,7 @@ Trust:
 1. The portal (Next.js server) calls issuer2's internal API, `POST http://localhost:7005/issuer2/credential-offers` with `{ "profileId": "AgentCredential", "authMethod": "PRE_AUTHORIZED", "valueMode": "BY_REFERENCE", "expiresInSeconds": 600, "runtimeOverrides": { "credentialData": { ...claims } } }`.
 2. The portal (single operator from `OPERATOR_NAME`, no sign-in) shows the offer on the agent page `/agents/{agent_id}` as a QR code and as a link, `openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.localtest.me%2Fopenid4vci%2Fcredential-offer%3Fid%3D...` (by reference). The link is an `<a>` with `id="credential-offer-link"` (its text is the URL), with a Copy button (`id="copy-offer-link"`), a live "Expires in m:ss" (`id="credential-offer-expiry"`) and status (`id="credential-offer-status"`). The page polls `/api/registry/offers/{offerId}` (→ `{status}`, read from issuer2 server-side) and switches to the issued state (`id="credential-issued"`, solid card `id="credential-card"`) without a reload. The pre-authorized code is single-use (a second token request gets `invalid_grant`) and the offer expires after 10 minutes.
    - Wallet side: issuer metadata at `https://issuer.localtest.me/.well-known/openid-credential-issuer/openid4vci`, AS metadata at `https://issuer.localtest.me/.well-known/oauth-authorization-server/openid4vci`. The token request may omit `client_id` (issuer2 is configured for anonymous pre-authorized access). The access token is a plain `bearer` token (no DPoP). Proofs: `proofs.jwt` with ES256 and `jwk` in the header, `nonce` from the nonce endpoint.
-3. The user pastes the link to the agent, and the agent calls the wallet's `acquire_credential` tool with it unchanged.
+3. The user pastes the link to the agent, and the agent calls the wallet's `submit` tool with it unchanged.
 4. Later step: a `tx_code` (PIN shown on the portal, entered on the wallet's approval page).
 
 ## Verification: Lantern Tickets → verifier2 → wallet ("Sign in with your wallet")
@@ -67,8 +67,8 @@ Checkout flow (no "who is buying" choice; people and agents both sign in with a 
 | --- | --- | --- |
 | Seats | `/` (event, rows A–D × 10, up to 4 seats; plain HTML form) | checkboxes `seat-B4` …, `checkout-button` |
 | Sign in | `/checkout/{chk}`: one card, **Continue with wallet** (seats reserved 10 min). Skipped when already signed in. "No wallet? Use email instead" → `/checkout/{chk}/email` (not part of the demo) | `continue-with-wallet`, `email-signin-link` |
-| Sign in (wallet request) | `/checkout/{chk}/verify`: QR + `<a id="verify-agent-link" href="openid4vp://...">Open in wallet</a>`, waiting state, "What we check". Auto-advances on success (JS polls `/api/tickets/verification/{vrf}` → `{status, message?, nextUrl?}`); without JS, reload or `check-status-link` | `verify-agent-link`, `verification-status`, `check-status-link`, `verification-error` |
-| (finish sign-in) | `GET /checkout/{chk}/signed-in`: single-use, only for the browser holding that checkout's cookie; sets the `lantern_session` cookie, 303 → confirm | |
+| Sign in (wallet request) | `/checkout/{chk}/verify`: QR + `<a id="verify-agent-link" href="openid4vp://...">Open in wallet</a>`, waiting state, "What we check". JS polls `/api/tickets/verification/{vrf}` → `{status, message?}` only to show status; it never finishes the sign-in. Once the wallet has answered it shows "Your wallet has answered. Continue with the link it returned." (`verification-answered`) | `verify-agent-link`, `verification-status`, `verification-answered`, `check-status-link`, `verification-error` |
+| (finish sign-in) | `GET /checkout/{chk}/signed-in?response_code=...`: the wallet's continuation (verifier2's success redirect). Single-use, only for the browser holding that checkout's cookie **and** the matching `response_code`; sets the `lantern_session` cookie, 303 → confirm | |
 | Confirm | `/checkout/{chk}/confirm`: "Welcome, {name}", account details, order, **Hold my seats** | `hold-seats`, `signed-in-status`, `account-details`, `hold-error` |
 | Done | `/orders/{ord}`: ticket stubs and the "Placed by" credential card | `order-summary`, `order-seats`, `placed-by`, `order-id` |
 
@@ -84,41 +84,41 @@ Accounts: the first successful sign-in creates a Lantern account keyed by the cr
        "credential_sets": [ { "options": [ ["agent"] ], "required": true } ] }
      ```
    - response mode `direct_post` (not `direct_post.jwt`: walt.id's conformance notes of 8 July 2026 show an audience bug there).
+   - `redirects.success_redirect_uri` = `https://tickets.localtest.me/checkout/{chk}/signed-in` and `redirects.error_redirect_uri` = that checkout's verify page with an `error` message. verifier2 answers the wallet's successful `direct_post` with `{"redirect_uri": "<success_redirect_uri>?response_code=<fresh value>"}` and keeps `response_code` in the session's `/info`.
 2. verifier2 signs request objects as `client_id = x509_san_dns:tickets.localtest.me`, with key and x5c from `infra/certs/verifier-*` and `urlPrefix = https://tickets.localtest.me/verification-session`.
    - The link is the by-reference form: `openid4vp://authorize?client_id=x509_san_dns%3Atickets.localtest.me&request_uri=https%3A%2F%2Ftickets.localtest.me%2Fverification-session%2F{id}%2Frequest&request_uri_method=post`. The `request_uri` answers both GET and POST (form `wallet_nonce`, `wallet_metadata`) with `Content-Type: application/oauth-authz-req+jwt`.
    - Request object header: `alg` ES256, `typ` `oauth-authz-req+jwt`, `x5c` = leaf only (SAN `tickets.localtest.me`, chains to `rootCA.pem`). Payload: `client_id`, `response_type` `vp_token`, `response_mode` `direct_post`, `response_uri` `.../{id}/response`, `nonce`, `state`, `dcql_query`, `client_metadata`, `aud` `https://self-issued.me/v2`, `iss` = client_id; no `exp`.
    - The wallet posts `vp_token={"agent":["<sd-jwt>~<disclosures>~<kb-jwt>"]}&state=...` to `response_uri`. The KB-JWT `aud` is the full client_id `x509_san_dns:tickets.localtest.me`; its `iat` must be within 5 minutes.
    - verifier2 policies: VC `signature`, `expiration`, `not-before`, `allowed-issuer` = `https://issuer.localtest.me/openid4vci`; VP `audience-check`, `kb-jwt_signature`, `nonce-check`, `sd_hash-check`, `kb-jwt_iat-check`, `exp-check`, `nbf-check`. verifier2 has no x5c-to-root policy for SD-JWT, so Lantern Tickets additionally checks the issuer x5c chain to `rootCA.pem`, its SAN and that its key is the one verifier2 verified with.
-3. The verify page shows a QR code and the `openid4vp://...` link as an `<a>` with `id="verify-agent-link"` and visible text "Open in wallet". The agent reads it and calls the wallet's `present_credential` tool with it unchanged, then waits for the page to advance to Confirm and clicks **Hold my seats** (`id="hold-seats"`).
-4. The Next.js server follows the session by polling `GET /verification-session/{id}/info`. On success it requires all requested claims (verifier2 reports SUCCESSFUL even when claims are withheld), checks the issuer chain, finds or creates the account, and the browser is signed in. Holding seats stores the disclosed claims on the order.
+3. The verify page shows a QR code and the `openid4vp://...` link as an `<a>` with `id="verify-agent-link"` and visible text "Open in wallet". The agent reads it and calls the wallet's `submit` tool with it unchanged. When the operation completes, the agent opens its `continuation` in the same browser, lands on Confirm and clicks **Hold my seats** (`id="hold-seats"`).
+4. The Next.js server reads `GET /verification-session/{id}/info`. On success it requires all requested claims (verifier2 reports SUCCESSFUL even when claims are withheld), checks the issuer chain, finds or creates the account and stores the session's `response_code`. The browser is signed in only when it opens the continuation with that `response_code`; a page that relayed someone else's request cannot be signed in by polling. People sign in by opening the link on the device that holds their wallet. Holding seats stores the disclosed claims on the order.
 
-## Wallet MCP interface (A2WP as MCP tools)
+## Wallet MCP interface (A2WP -01 as MCP tools)
 
 Endpoint: `https://wallet.localtest.me/mcp`, MCP Streamable HTTP. Every request carries `Authorization: Bearer <agent API key>`. A missing or unknown key gets 401.
 
-Tools. Every result carries an `operation` object in `structuredContent`, plus a one-line text summary. Exception (wallet): a request rejected before any operation exists (malformed URL, unknown `operation_id`, `wait_seconds` out of range, too many active operations) returns `isError: true` with `structuredContent` `{ "error": { "code", "detail" } }` and no `operation`. A refused `cancel_operation` returns `isError: true` with both `operation` and `error` (`not-cancellable`).
+One tool per A2WP -01 call. Every result carries an `operation` object in `structuredContent`, plus a one-line text summary. A rejection (an error and no operation) returns `isError: true` with `structuredContent` `{ "error": { "code", "detail" } }`: `submit` without a `request` string (`unsupported-request`), `get` or `cancel` of an unknown or another agent's operation (`not-found`), a refused `cancel` (`not-cancellable`), and too many active operations (`denied`).
 
 | Tool | Input | Notes |
 | --- | --- | --- |
-| `acquire_credential` | `{ "offer": string }`: an `openid-credential-offer://` URL or an `https` `credential_offer_uri` | Returns at once with the operation |
-| `present_credential` | `{ "request": string }`: an `openid4vp://` URL (or `https` authorization request URL) | Returns at once with the operation |
-| `get_operation` | `{ "operation_id": string, "wait_seconds"?: 0-25 }` | Long-polls up to `wait_seconds` for a status change |
-| `cancel_operation` | `{ "operation_id": string }` | Before the commit point only |
+| `submit` | `{ "request": string }`: a credential offer or presentation request link, exactly as received | The wallet identifies it: `openid-credential-offer://` is an offer; `openid4vp://`, `haip-vp://`, `eudi-openid4vp://` are requests; an `https` link is a request when it has `client_id`, otherwise an offer. Returns at once with the operation |
+| `get` | `{ "id": string, "wait_seconds"?: 0-25 }` | Long-polls up to `wait_seconds` for a change (out-of-range values are clamped) |
+| `cancel` | `{ "id": string }` | Before the commit point only; cancelling a cancelled operation returns it |
 
-Operation object:
+Operation object (A2WP -01):
 
 ```json
-{ "operation_id": "op_...", "operation": "acquire" | "present",
-  "status": "pending" | "processing" | "interaction_required" | "completed" | "failed" | "cancelled",
-  "interaction": { "interaction_uri": "https://wallet.localtest.me/approve/...", "expires_at": "..." },
-  "result": { "credentials": [ { "credential_handle": "...", "vct": "...", "issuer": "..." } ] },
-  "error": { "code": "policy-denied" | "external-protocol-error" | "...", "detail": "..." } }
+{ "id": "op_...",
+  "status": "pending" | "completed" | "failed" | "cancelled",
+  "interaction": { "uri": "https://wallet.localtest.me/approve/...", "expires_at": "..." },
+  "continuation": "https://tickets.localtest.me/checkout/chk_.../signed-in?response_code=...",
+  "error": { "code": "denied" | "processing-error" | "...", "detail": "..." } }
 ```
 
-- `interaction` is present only while `interaction_required`. The agent forwards `interaction_uri` to the user; it never opens it itself.
-- `result` is present only when `completed`; for `present`, it is `{ "verifier": "tickets.localtest.me" }`, plus `"redirect_uri"` if the verifier returned one.
-- Error codes (wallet): the A2WP draft codes `invalid-request`, `unsupported-protocol`, `policy-denied`, `interaction-expired`, `operation-expired`, `external-protocol-error`, `outcome-unknown`, `not-cancellable`, plus `no-matching-credential` (acquire one first), `not-found` (unknown or another agent's operation) and `too-many-operations`.
-- A repeated `acquire_credential` / `present_credential` with the same URL from the same agent returns the existing operation while it is nonterminal or completed, so a retried tool call cannot redeem or disclose twice.
+- `interaction` is present only while the operation is `pending` and the wallet needs the user. The agent forwards `interaction.uri` to the user; it never opens it itself. The approval page always asks for the principal's passcode.
+- `continuation` is the verifier's `redirect_uri`, unchanged, on `completed` or `failed`. The agent opens it in the browser where it found the request. An issuance has none.
+- Error codes: `unsupported-request`, `denied`, `no-matching-credential`, `expired`, `processing-error`, `outcome-unknown`, `not-found`, `not-cancellable`.
+- Commit points: redeeming the pre-authorized code (issuance) and sending the presentation. A repeated `submit` with the identical string from the same agent returns its most recent operation, unless that one ended before its commit point, so a retried call cannot redeem or disclose twice.
 - No credential, presentation or key ever appears in a tool result.
 
 Configuration file (`wallet/config/wallet.json`, dev values):
@@ -132,6 +132,6 @@ Dev API key for the demo agent: generated by `infra/scripts/dev-keys.sh`, never 
 
 ## Done means
 
-- **wallet:** `./gradlew test` passes. With infra up, `acquire_credential` with a portal offer stores the credential, and `present_credential` with a checkout link completes, verified through verifier2. A README explains how to run it and how to point an MCP client at it.
+- **wallet:** `./gradlew test` passes. With infra up, `submit` with a portal offer stores the credential, and `submit` with a checkout link completes with a continuation that signs the browser in, verified through verifier2. A README explains how to run it and how to point an MCP client at it.
 - **web:** `pnpm build` passes. The portal creates real issuer2 offers, and checkout creates real verifier2 sessions and unlocks on success. A README explains how to run it.
 - **Both:** note anything surprising about the A2WP model, the walt.id services or this contract in an "Observations" section of your own README. The orchestrator merges them into `docs/A2WP-DRAFT-FEEDBACK.md`.

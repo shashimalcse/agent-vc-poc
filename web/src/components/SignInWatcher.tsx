@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Countdown } from "./Countdown";
 
-type Status = { status: string; message?: string; nextUrl?: string };
+type Status = { status: string; message?: string };
 
 // "Waiting for your wallet…" with a live countdown. Polls Lantern's own route handler (never
-// verifier2) and advances on its own when the wallet has signed in. Without JS, the page's
-// "Check status" link does the same on the server.
+// verifier2). It never signs in by itself: once the wallet has answered, the sign-in finishes only
+// when this browser opens the link the wallet returned (its continuation). Without JS, the page's
+// "Check status" link shows the same on the server.
 export function SignInWatcher({
   verificationId,
   expiresAt,
@@ -32,9 +33,8 @@ export function SignInWatcher({
         });
         if (res.ok) {
           const s = (await res.json()) as Status;
-          if (s.status === "verified" && s.nextUrl) {
+          if (s.status === "verified") {
             setDone(true);
-            window.location.assign(s.nextUrl);
             return;
           }
           if (s.status !== "pending") {
@@ -57,7 +57,7 @@ export function SignInWatcher({
   return (
     <div role="status" aria-live="polite" className={`status-box${done ? " done" : ""}`} id="verification-status">
       <span className="status-dot" aria-hidden="true" />
-      <span>{done ? "Signed in. Opening your account…" : "Waiting for your wallet…"}</span>
+      <span>{done ? "Your wallet has answered. Continue with the link it returned." : "Waiting for your wallet…"}</span>
       {!done && (
         <span className="status-expiry">
           <Countdown expiresAt={expiresAt} initial={initialRemaining} onExpire={refresh} />

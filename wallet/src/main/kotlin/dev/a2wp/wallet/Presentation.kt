@@ -37,10 +37,7 @@ import eu.europa.ec.eudi.sdjwt.vc.ClaimPath as SdClaimPath
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.util.Date
@@ -83,15 +80,15 @@ class PresentService(
         val cert = when (val c = request.client) {
             is Client.X509SanDns -> c.cert
             is Client.X509Hash -> c.cert
-            else -> throw OperationFailure(ErrorCodes.UNSUPPORTED_PROTOCOL, "Only x509_san_dns and x509_hash verifiers are supported.")
+            else -> throw OperationFailure(ErrorCodes.UNSUPPORTED_REQUEST, "Only x509_san_dns and x509_hash verifiers are supported.")
         }
         val rule = PolicyEngine.verifierRule(agent.policy, verifiedClientId)
-            ?: throw OperationFailure(ErrorCodes.POLICY_DENIED, "Verifier $verifiedClientId is not allowed by wallet policy.")
+            ?: throw OperationFailure(ErrorCodes.DENIED, "Verifier $verifiedClientId is not allowed by wallet policy.")
         if (request.responseMode !is ResponseMode.DirectPost) {
-            throw OperationFailure(ErrorCodes.UNSUPPORTED_PROTOCOL, "Only response_mode direct_post is supported.")
+            throw OperationFailure(ErrorCodes.UNSUPPORTED_REQUEST, "Only response_mode direct_post is supported.")
         }
         if (!request.transactionData.isNullOrEmpty()) {
-            throw OperationFailure(ErrorCodes.UNSUPPORTED_PROTOCOL, "transaction_data is not supported.")
+            throw OperationFailure(ErrorCodes.UNSUPPORTED_REQUEST, "transaction_data is not supported.")
         }
 
         // 3. Match the DCQL query against this agent's credentials, with minimal disclosure.
@@ -134,17 +131,16 @@ class PresentService(
             throw OperationFailure(ErrorCodes.OUTCOME_UNKNOWN, "Sending the presentation failed; the verifier may or may not have received it.")
         }
         when (outcome) {
+            // A2WP -01: the Response Endpoint's redirect_uri is the continuation, passed to the agent unchanged,
+            // whether the verifier accepted or rejected the presentation.
             is DispatchOutcome.VerifierResponse.Accepted -> {
                 log.info("presented to {} for agent {}", verifiedClientId, agent.agentId)
-                ctx.complete(buildJsonObject {
-                    put("verifier", verifierDisplayName(verifiedClientId))
-                    outcome.redirectURI?.let { put("redirect_uri", it.toString()) }
-                })
+                ctx.complete(outcome.redirectURI?.toString())
             }
             is DispatchOutcome.VerifierResponse.Rejected ->
-                throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The verifier rejected the presentation.")
+                throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The verifier rejected the presentation.", outcome.redirectURI?.toString())
             is DispatchOutcome.RedirectURI ->
-                throw OperationFailure(ErrorCodes.UNSUPPORTED_PROTOCOL, "Redirect-based response modes are not supported.")
+                throw OperationFailure(ErrorCodes.UNSUPPORTED_REQUEST, "Redirect-based response modes are not supported.")
         }
     }
 
@@ -241,9 +237,9 @@ class PresentService(
             is HttpError, is ResolutionError.UnableToFetchRequestObject -> {
                 val cause = (e as? HttpError)?.cause ?: (e as ResolutionError.UnableToFetchRequestObject).cause
                 if (generateSequence(cause) { it.cause }.any { it is java.net.UnknownHostException && it.message?.startsWith("blocked") == true }) {
-                    OperationFailure(ErrorCodes.POLICY_DENIED, "The request URL is blocked by the wallet's network policy.")
+                    OperationFailure(ErrorCodes.DENIED, "The request URL is blocked by the wallet's network policy.")
                 } else {
-                    OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "Could not fetch the request object ($name).")
+                    OperationFailure(ErrorCodes.PROCESSING_ERROR, "Could not fetch the request object ($name).")
                 }
             }
             is RequestValidationError.UnsupportedClientIdPrefix,
@@ -252,11 +248,11 @@ class PresentService(
             is RequestValidationError.UnsupportedResponseType,
             is RequestValidationError.UnsupportedQueryFormats,
             is ResolutionError.ClientVpFormatsNotSupportedFromWallet,
-            -> OperationFailure(ErrorCodes.UNSUPPORTED_PROTOCOL, "The request uses an unsupported feature ($name).")
+            -> OperationFailure(ErrorCodes.UNSUPPORTED_REQUEST, "The request uses an unsupported feature ($name).")
             is RequestValidationError.InvalidJarJwt,
             is RequestValidationError.InvalidClientId,
-            -> OperationFailure(ErrorCodes.POLICY_DENIED, "The verifier could not be authenticated ($name).")
-            else -> OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The request is invalid ($name).")
+            -> OperationFailure(ErrorCodes.DENIED, "The verifier could not be authenticated ($name).")
+            else -> OperationFailure(ErrorCodes.PROCESSING_ERROR, "The request is invalid ($name).")
         }
     }
 

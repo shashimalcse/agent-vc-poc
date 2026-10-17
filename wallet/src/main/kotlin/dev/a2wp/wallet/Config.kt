@@ -57,8 +57,8 @@ data class PrincipalConfig(
     /** Short display name for the principal (the agent's owner who approves). Not used in page headers. */
     @SerialName("display_name") val displayName: String? = null,
     /**
-     * Optional SHA-256 (hex) of a passcode the principal must type on the approval page.
-     * Without it, possession of the approval link is enough to approve.
+     * SHA-256 (hex) of the passcode the principal must type on the approval page. Required for every principal
+     * an agent uses: A2WP -01 has the wallet authenticate the principal during an interaction.
      */
     @SerialName("approval_passcode_sha256") val approvalPasscodeSha256: String? = null,
 )
@@ -129,8 +129,12 @@ object ConfigLoader {
         require(hashes.toSet().size == hashes.size) { "duplicate api_key_sha256" }
         cfg.agents.forEach { a ->
             require(a.apiKeySha256.matches(Regex("^[0-9a-fA-F]{64}$"))) { "agent ${a.id}: api_key_sha256 must be 64 hex chars" }
-            require(cfg.principals.isEmpty() || cfg.principals.any { it.id == a.principal }) {
-                "agent ${a.id}: unknown principal ${a.principal}"
+            // A2WP -01: the wallet MUST authenticate the principal during an interaction, so every agent's
+            // principal must be declared with an approval passcode.
+            val principal = cfg.principals.firstOrNull { it.id == a.principal }
+            require(principal != null) { "agent ${a.id}: unknown principal ${a.principal}" }
+            require(principal.approvalPasscodeSha256?.matches(Regex("^[0-9a-fA-F]{64}$")) == true) {
+                "principal ${principal.id}: approval_passcode_sha256 (64 hex chars) is required"
             }
         }
     }

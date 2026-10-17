@@ -78,6 +78,11 @@ export type Verification = {
   /** On success: the account the credential signs in to. */
   accountId?: string;
   newAccount?: boolean;
+  /**
+   * verifier2's one-time response_code for a successful sign-in. It reaches the agent as the wallet's continuation
+   * (the success redirect), and only that redirect can finish the sign-in.
+   */
+  responseCode?: string;
   /** Set when a browser session was created from this verification (single use). */
   consumedAt?: string;
   createdAt: string;

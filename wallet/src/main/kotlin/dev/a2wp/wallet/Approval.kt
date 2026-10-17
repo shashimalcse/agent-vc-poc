@@ -14,9 +14,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.security.MessageDigest
@@ -29,7 +26,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The approval page at /approve/{id} and its result pages, styled after docs/design/WalletApprove and WalletDone.
  * GET is side-effect free (chat apps prefetch links); only POST acts. No JavaScript.
- * The agent relays the link but must not complete it; an optional principal passcode enforces that.
+ * The agent relays the link but must not complete it; the principal passcode enforces that.
  */
 class ApprovalPages(
     private val ops: OperationManager,
@@ -214,8 +211,8 @@ class ApprovalPages(
                 is ApprovalPrompt.Acquire -> added(p, pr, s)
             }
             outcome == InteractionOutcome.Denied -> declined(p)
-            outcome == InteractionOutcome.Expired || s.error?.code == ErrorCodes.INTERACTION_EXPIRED ||
-                s.error?.code == ErrorCodes.OPERATION_EXPIRED -> expired()
+            outcome == InteractionOutcome.Expired || s.error?.code == ErrorCodes.EXPIRED ||
+                s.error?.code == ErrorCodes.EXPIRED -> expired()
             s.status == OpStatus.CANCELLED ->
                 resultScreen(Icon.STOP, "Request cancelled", "Your agent cancelled this request. Nothing was shared.")
             s.status == OpStatus.FAILED -> failed(p, s)
@@ -237,9 +234,10 @@ class ApprovalPages(
     }
 
     private fun added(p: PendingInteraction, pr: ApprovalPrompt.Acquire, s: OperationSnapshot): String {
-        val handle = s.result?.get("credentials")?.jsonArray?.firstOrNull()?.jsonObject?.get("credential_handle")
-            ?.let { (it as? JsonPrimitive)?.content }
-        val stored = handle?.let { h -> store.credentialsFor(p.operation.agentId).firstOrNull { it.handle == h } }
+        // Operations carry no credential handle (A2WP -01), so show the newest credential this issuance stored.
+        val stored = store.credentialsFor(p.operation.agentId)
+            .filter { it.issuer == pr.issuer && !Instant.parse(it.storedAt).isBefore(p.operation.createdAt) }
+            .maxByOrNull { Instant.parse(it.storedAt) }
         val values = stored?.let { runCatching { PresentService.claimValues(it).first }.getOrNull() }.orEmpty()
         return resultScreen(
             Icon.CHECK, "Credential added", "It stays in your agent's wallet. Your agent can use it, but never sees it.",

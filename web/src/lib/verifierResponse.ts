@@ -7,6 +7,8 @@ export type Verifier2Info = {
   id?: string;
   status?: string;
   statusReason?: string | null;
+  /** Fresh value verifier2 appends to the success redirect (session fixation protection, OpenID4VP 1.0). */
+  response_code?: string | null;
   failure?: { type?: string; [k: string]: unknown } | null;
   policy_results?: {
     overallSuccess?: boolean;

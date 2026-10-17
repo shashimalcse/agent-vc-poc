@@ -38,9 +38,33 @@ data class ParsedPresentationRequest(
     val dedupeKey: String,
 )
 
+/** What a submitted request turned out to be (A2WP -01: the wallet identifies the request). */
+sealed interface ParsedRequest {
+    data class Offer(val offer: ParsedOffer) : ParsedRequest
+    data class Presentation(val request: ParsedPresentationRequest) : ParsedRequest
+}
+
 object RequestParsing {
     private const val OFFER_SCHEME = "openid-credential-offer"
     private val VP_SCHEMES = setOf("openid4vp", "haip-vp", "eudi-openid4vp")
+
+    /**
+     * Identifies a request as received: the custom scheme decides it; an https link is a presentation request when it
+     * has client_id, otherwise a credential offer (by value, or the https URL is itself the offer's reference).
+     */
+    fun classify(input: String, maxChars: Int = 16_384): ParsedRequest {
+        val s = input.trim()
+        if (s.isEmpty() || s.length > maxChars) throw invalid("The wallet does not recognize this request.")
+        val uri = parseUri(s)
+        return when (uri.scheme?.lowercase()) {
+            OFFER_SCHEME -> ParsedRequest.Offer(parseOffer(s, maxChars))
+            in VP_SCHEMES -> ParsedRequest.Presentation(parsePresentationRequest(s, maxChars))
+            "https" ->
+                if ("client_id" in queryParams(uri)) ParsedRequest.Presentation(parsePresentationRequest(s, maxChars))
+                else ParsedRequest.Offer(parseOffer(s, maxChars))
+            else -> throw invalid("The wallet does not recognize this request.")
+        }
+    }
 
     fun parseOffer(input: String, maxChars: Int = 16_384): ParsedOffer {
         val s = input.trim()
@@ -96,7 +120,7 @@ object RequestParsing {
         val requestJwt = params["request"]?.firstOrNull()?.takeIf { it.isNotBlank() }
         if (requestUri != null && requestJwt != null) throw invalid("The request has both request and request_uri.")
         if (requestUri == null && requestJwt == null) {
-            throw RequestError(ErrorCodes.UNSUPPORTED_PROTOCOL, "Only signed requests (request or request_uri) are supported.")
+            throw RequestError(ErrorCodes.UNSUPPORTED_REQUEST, "Only signed requests (request or request_uri) are supported.")
         }
         if (requestUri != null) {
             val ru = parseUri(requestUri)
@@ -136,5 +160,5 @@ object RequestParsing {
             throw invalid("Malformed URL encoding.")
         }
 
-    private fun invalid(detail: String) = RequestError(ErrorCodes.INVALID_REQUEST, detail)
+    private fun invalid(detail: String) = RequestError(ErrorCodes.UNSUPPORTED_REQUEST, detail)
 }

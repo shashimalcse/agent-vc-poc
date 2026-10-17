@@ -15,7 +15,7 @@ You play the user in the browser. `scripts/agent.py` plays the personal agent: i
 3. Hand it to the agent:
 
    ```
-   python3 -I scripts/agent.py acquire '<offer link>'
+   python3 -I scripts/agent.py '<offer link>'
    ```
 
 4. Expect `completed` with one credential. Reload the portal: the status is **Issued**.
@@ -27,11 +27,11 @@ You play the user in the browser. `scripts/agent.py` plays the personal agent: i
 3. Hand it to the agent:
 
    ```
-   python3 -I scripts/agent.py present '<verify link>'
+   python3 -I scripts/agent.py '<verify link>'
    ```
 
-4. The agent prints an approval link. Open it, check who is asking and what will be shared, then **Approve**.
-5. The terminal shows `completed`, and the checkout page changes to **Seats held**.
+4. The agent prints an approval link. Open it, check who is asking and what will be shared, enter the approval passcode (in dev: `wallet/data/dev-approval-passcode.txt`), then **Approve**.
+5. The terminal shows `completed` and a continuation link. Open it in the browser where you started the checkout: that signs the checkout in. The verify page alone never moves on, by design (A2WP -01 relayed requests).
 
 ## Things worth trying
 

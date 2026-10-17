@@ -2,9 +2,10 @@
 """Manual end-to-end check against the running infra (issuer2, verifier2, Caddy) and a running wallet.
 
   1. creates an offer at issuer2 (internal API on localhost:7005, as the portal does)
-  2. acquire_credential over MCP (through https://wallet.localtest.me/mcp)
+  2. submit the offer over MCP (through https://wallet.localtest.me/mcp)
   3. creates a verifier2 session with the WIRING.md DCQL query (localhost:7004, as checkout does)
-  4. present_credential over MCP; approves on the approval page, acting as the user
+  4. submit the request over MCP; approves on the approval page, acting as the user; checks that the
+     verifier's redirect comes back as the A2WP -01 continuation with verifier2's response_code
   5. checks that verifier2 reports success
 
 Usage: python3 -I scripts/integration.py <api-key> [--tx-code] [--manual]   (run from wallet/)
@@ -79,11 +80,12 @@ def wait_terminal(mcp, op, approve=None):
         s = op["status"]
         if s in ("completed", "failed", "cancelled"):
             return op
-        if s == "interaction_required" and approve is not None and MANUAL:
-            print("  open in a browser:", op["interaction"]["interaction_uri"], flush=True)
+        needs_user = "interaction" in op
+        if needs_user and approve is not None and MANUAL:
+            print("  open in a browser:", op["interaction"]["uri"], flush=True)
             approve = None
-        if s == "interaction_required" and approve is not None:
-            uri = op["interaction"]["interaction_uri"]
+        if needs_user and approve is not None:
+            uri = op["interaction"]["uri"]
             if not WALLET.startswith("https://wallet.localtest.me/"):  # a second local instance for testing
                 uri = WALLET.rsplit("/mcp", 1)[0] + "/approve/" + uri.rsplit("/approve/", 1)[1]
             st, page = http("GET", uri)
@@ -91,7 +93,7 @@ def wait_terminal(mcp, op, approve=None):
             st, page = http("POST", uri, approve, form=True)
             print(f"  [as the user] POST {uri} -> {st}")
             approve = None
-        op = mcp.tool("get_operation", {"operation_id": op["operation_id"], "wait_seconds": 25})["structuredContent"]["operation"]
+        op = mcp.tool("get", {"id": op["id"], "wait_seconds": 25})["structuredContent"]["operation"]
 
 
 def main():
@@ -100,6 +102,9 @@ def main():
     global MANUAL
     MANUAL = "--manual" in sys.argv[2:]  # print approval links and wait for a person to use them
     mcp = Mcp(key)
+    # A2WP -01: the wallet authenticates the principal on the approval page.
+    passcode = __import__("os").environ.get("A2WP_APPROVAL_PASSCODE")
+    auth = {"passcode": passcode} if passcode else {}
 
     print("1. create offer at issuer2")
     st, body = http("POST", f"{ISSUER2}/issuer2/credential-offers", {
@@ -115,15 +120,17 @@ def main():
     offer = json.loads(body)["credentialOffer"]
     print("  offer:", offer[:60] + "...")
 
-    print("2. acquire_credential")
-    op = mcp.tool("acquire_credential", {"offer": offer})["structuredContent"]["operation"]
-    op = wait_terminal(mcp, op, approve={"action": "approve", **({"tx_code": "493817"} if tx else {})})
+    print("2. submit the offer")
+    op = mcp.tool("submit", {"request": offer})["structuredContent"]["operation"]
+    op = wait_terminal(mcp, op, approve={"action": "approve", **auth, **({"tx_code": "493817"} if tx else {})})
     assert op["status"] == "completed", op
-    print("  result:", json.dumps(op["result"]))
+    assert "continuation" not in op, op  # an issuance has no continuation
+    print("  final:", json.dumps(op))
 
     print("3. create verifier2 session")
     st, body = http("POST", f"{VERIFIER2}/verification-session/create", {
         "flow_type": "cross_device",
+        "redirects": {"success_redirect_uri": "https://tickets.localtest.me/checkout/chk_integration/signed-in"},
         "core_flow": {
             "dcql_query": {"credentials": [{"id": "agent", "format": "dc+sd-jwt", "meta": {"vct_values": [VCT]},
                                             "claims": [{"path": ["agent_id"]}, {"path": ["agent_name"]},
@@ -144,9 +151,9 @@ def main():
     req_url = sess.get("bootstrapAuthorizationRequestUrl") or sess["fullAuthorizationRequestUrl"]
     print("  request:", req_url[:80] + "...")
 
-    print("4. present_credential")
-    op = mcp.tool("present_credential", {"request": req_url})["structuredContent"]["operation"]
-    op = wait_terminal(mcp, op, approve={"action": "approve"})
+    print("4. submit the request")
+    op = mcp.tool("submit", {"request": req_url})["structuredContent"]["operation"]
+    op = wait_terminal(mcp, op, approve={"action": "approve", **auth})
     print("  final:", json.dumps(op))
 
     print("5. verifier2 session info")
@@ -156,7 +163,11 @@ def main():
           (info.get("policyResults") or info.get("policy_results") or {}).get("overallSuccess"))
     seen = [c for c in ("agent_id", "agent_name", "provider", "operator", "accreditation_level") if f'"{c}"' in body]
     print("  claims visible in verifier2 session info:", ", ".join(seen))
-    ok = op["status"] == "completed" and str(info.get("status", "")).upper() in ("SUCCESSFUL", "SUCCESS")
+    continuation = op.get("continuation", "")
+    print("  continuation:", continuation)
+    ok = (op["status"] == "completed" and str(info.get("status", "")).upper() in ("SUCCESSFUL", "SUCCESS")
+          and continuation.startswith("https://tickets.localtest.me/checkout/chk_integration/signed-in?")
+          and bool(info.get("response_code")) and f"response_code={info['response_code']}" in continuation)
     if __import__("os").environ.get("A2WP_DUMP_INFO"):
         print(json.dumps(info, indent=1))
     print("RESULT:", "PASS" if ok else "CHECK OUTPUT")

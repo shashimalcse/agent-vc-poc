@@ -60,26 +60,26 @@ class Wallet:
 
 
 def main():
-    p = argparse.ArgumentParser(description="Play the agent: hand a link to the wallet.")
+    p = argparse.ArgumentParser(description="Play the agent: submit a link to the wallet (A2WP -01).")
     p.add_argument("--agent", default="manual", help="wallet agent id (default: manual)")
-    p.add_argument("action", choices=["acquire", "present"])
-    p.add_argument("link")
+    p.add_argument("link", help="a credential offer or presentation request link, unchanged")
     a = p.parse_args()
 
     wallet = Wallet(load_key(a.agent))
-    tool, field = ("acquire_credential", "offer") if a.action == "acquire" else ("present_credential", "request")
-    op = wallet.tool(tool, {field: a.link})
+    op = wallet.tool("submit", {"request": a.link})
 
     shown = None
-    while op["status"] not in ("completed", "failed", "cancelled"):
-        if op["status"] == "interaction_required":
-            uri = op["interaction"]["interaction_uri"]
+    while op["status"] == "pending":
+        if "interaction" in op:
+            uri = op["interaction"]["uri"]
             if uri != shown:
                 print(f"\nagent> The wallet needs you. Open this link in your browser and decide:\n\n  {uri}\n")
                 shown = uri
-        op = wallet.tool("get_operation", {"operation_id": op["operation_id"], "wait_seconds": 25})
+        op = wallet.tool("get", {"id": op["id"], "wait_seconds": 25})
 
-    print("\n" + json.dumps({k: op[k] for k in ("status", "result", "error") if k in op}, indent=2))
+    if "continuation" in op:
+        print(f"\nagent> Open the continuation in the browser where you found the request:\n\n  {op['continuation']}\n")
+    print("\n" + json.dumps({k: op[k] for k in ("status", "continuation", "error") if k in op}, indent=2))
 
 
 if __name__ == "__main__":

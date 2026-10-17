@@ -40,9 +40,10 @@ export default async function VerifyPage({
 
   const v = await advanceVerification(checkout.verificationId);
   if (!v) redirect(to(`/checkout/${checkoutId}`));
-  // Signed in by the wallet: finish in the browser (sets the session cookie), unless that failed.
-  if (v.status === "verified" && !error) redirect(to(`/checkout/${checkoutId}/signed-in`));
-
+  // A verified sign-in is finished only by the wallet's continuation (the success redirect with its
+  // response_code), never by this page: otherwise a page that relayed someone else's request could
+  // be signed in by polling.
+  const answered = v.status === "verified" && !error;
   const pending = v.status === "pending";
   const qr = pending ? await qrSvg(v.requestUrl, { dark: "#131117", light: "#F4EFE8" }) : null;
   const message = error ?? v.message ?? "The wallet sign-in did not complete.";
@@ -66,7 +67,12 @@ export default async function VerifyPage({
             create your account from the credential.
           </p>
 
-          {pending ? (
+          {answered ? (
+            <div role="status" className="status-box done" id="verification-answered">
+              <span className="status-dot" aria-hidden="true" />
+              <span>Your wallet has answered. Continue with the link it returned.</span>
+            </div>
+          ) : pending ? (
             <>
               <a id="verify-agent-link" className="wallet-link" href={v.requestUrl}>
                 <OpenWalletIcon />

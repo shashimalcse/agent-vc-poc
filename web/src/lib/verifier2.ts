@@ -8,8 +8,13 @@ import type { Verifier2Info } from "./verifierResponse";
 //   GET  /verification-session/{id}/info       -> session object (status, policy_results, presented_credentials, ...)
 //   GET  /verification-session/{id}/verification-session/events  (SSE; not used, /info is polled)
 
-/** Session setup. Signing key, x5c, client_id and urlPrefix come from verifier-service.conf. */
-export function buildSessionSetup() {
+/**
+ * Session setup. Signing key, x5c, client_id and urlPrefix come from verifier-service.conf.
+ * With a checkout, verifier2 answers the wallet's direct_post with a redirect_uri to that checkout's
+ * signed-in route plus a fresh response_code. The wallet hands it to the agent as the A2WP continuation,
+ * and Lantern signs in only the browser that opens it.
+ */
+export function buildSessionSetup(checkoutId?: string) {
   const issuers = [...new Set(ACCEPTED_CREDENTIALS.map((c) => c.issuer))];
   return {
     flow_type: "cross_device",
@@ -40,17 +45,27 @@ export function buildSessionSetup() {
         },
       },
     },
+    ...(checkoutId
+      ? {
+          redirects: {
+            success_redirect_uri: `${config.ticketsPublicUrl}/checkout/${encodeURIComponent(checkoutId)}/signed-in`,
+            error_redirect_uri: `${config.ticketsPublicUrl}/checkout/${encodeURIComponent(checkoutId)}/verify?error=${encodeURIComponent(
+              "The wallet sign-in did not complete.",
+            )}`,
+          },
+        }
+      : {}),
   };
 }
 
 export type CreatedSession = { sessionId: string; requestUrl: string };
 
-export async function createSignInSession(): Promise<CreatedSession> {
+export async function createSignInSession(checkoutId: string): Promise<CreatedSession> {
   const res = await fetch(`${config.verifier2InternalUrl}/verification-session/create`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     cache: "no-store",
-    body: JSON.stringify(buildSessionSetup()),
+    body: JSON.stringify(buildSessionSetup(checkoutId)),
   });
   if (!res.ok) throw new Error(`verifier2 create session failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
   const body = (await res.json()) as {

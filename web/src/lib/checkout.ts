@@ -1,4 +1,5 @@
 import "server-only";
+import { timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { config } from "./config";
 import { ACCEPTED_CREDENTIALS } from "./credentialTypes";
@@ -42,7 +43,7 @@ export async function startWalletSignIn(checkoutId: string): Promise<Verificatio
   if (!checkout) throw new Error("No such checkout");
   if (checkout.status !== "open") throw new Error("Checkout is already complete");
 
-  const session = await createSignInSession();
+  const session = await createSignInSession(checkoutId);
   const verification: Verification = {
     id: newId("vrf"),
     checkoutId,
@@ -128,7 +129,13 @@ export async function advanceVerification(id: string): Promise<Verification | nu
     } else {
       Object.assign(account, { claims, displayName: credential.displayName(claims), issuer: outcome.issuer, lastSignInAt: now });
     }
-    Object.assign(v, { status: "verified", accountId: account.id, newAccount, message: undefined });
+    Object.assign(v, {
+      status: "verified",
+      accountId: account.id,
+      newAccount,
+      responseCode: info?.response_code ?? undefined,
+      message: undefined,
+    });
     return v;
   });
 }
@@ -145,9 +152,14 @@ export type SignInResult = { ok: true; sessionId: string } | { ok: false; error:
 
 /**
  * Turn a verified wallet sign-in into a browser session. Only the browser that started the
- * checkout (it holds the checkout cookie) can do this, and only once per verification.
+ * checkout (it holds the checkout cookie) can do this, only with the response_code verifier2 put in
+ * the wallet's continuation, and only once per verification. Polling alone never signs anyone in.
  */
-export function consumeVerification(checkoutId: string, browserSecret: string | undefined): SignInResult {
+export function consumeVerification(
+  checkoutId: string,
+  browserSecret: string | undefined,
+  responseCode: string | null | undefined,
+): SignInResult {
   return mutate((db) => {
     const checkout = db.checkouts[checkoutId];
     if (!checkout?.verificationId) return { ok: false as const, error: "No sign-in for this checkout." };
@@ -156,6 +168,9 @@ export function consumeVerification(checkoutId: string, browserSecret: string | 
     }
     const v = db.verifications[checkout.verificationId];
     if (v?.status !== "verified" || !v.accountId) return { ok: false as const, error: "The wallet sign-in is not complete." };
+    if (!sameSecret(v.responseCode, responseCode)) {
+      return { ok: false as const, error: "Continue with the link your wallet returned after signing in." };
+    }
     if (v.consumedAt) return { ok: false as const, error: "This sign-in was already used." };
     const sessionId = newId("lses", 32);
     db.lanternSessions[sessionId] = {
@@ -168,6 +183,13 @@ export function consumeVerification(checkoutId: string, browserSecret: string | 
     v.consumedAt = new Date().toISOString();
     return { ok: true as const, sessionId };
   });
+}
+
+function sameSecret(expected: string | undefined, given: string | null | undefined): boolean {
+  if (!expected || !given) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(given);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export type HoldResult = { ok: true; orderId: string } | { ok: false; error: string };

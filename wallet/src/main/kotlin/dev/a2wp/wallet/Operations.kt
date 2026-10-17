@@ -21,65 +21,58 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-enum class OpKind(val wire: String) { ACQUIRE("acquire"), PRESENT("present") }
+/** What the wallet worked out the request is. Internal only: A2WP -01 does not put it on the wire. */
+enum class OpKind(val wire: String) { ACQUIRE("issuance"), PRESENT("presentation") }
 
+/** Internal states. On the wire (A2WP -01) the three nonterminal ones are all `pending`. */
 enum class OpStatus(val wire: String, val terminal: Boolean) {
     PENDING("pending", false),
-    PROCESSING("processing", false),
-    INTERACTION_REQUIRED("interaction_required", false),
+    PROCESSING("pending", false),
+    INTERACTION_REQUIRED("pending", false),
     COMPLETED("completed", true),
     FAILED("failed", true),
     CANCELLED("cancelled", true),
 }
 
-/** Error codes. The first block is from the A2WP draft; the rest change what the agent should do next. */
+/** The error codes of A2WP -01 (draft-senarath-a2wp-01, Section 5). */
 object ErrorCodes {
-    const val INVALID_REQUEST = "invalid-request"
-    const val UNSUPPORTED_PROTOCOL = "unsupported-protocol"
-    const val NOT_AUTHORIZED = "not-authorized"
-    const val POLICY_DENIED = "policy-denied"
-    const val INTERACTION_EXPIRED = "interaction-expired"
-    const val OPERATION_EXPIRED = "operation-expired"
-    const val EXTERNAL_PROTOCOL_ERROR = "external-protocol-error"
-    const val OUTCOME_UNKNOWN = "outcome-unknown"
-    const val NOT_CANCELLABLE = "not-cancellable"
-
-    /** PoC addition: no stored credential can satisfy the request. Next step: acquire one. */
+    const val UNSUPPORTED_REQUEST = "unsupported-request"
+    const val DENIED = "denied"
     const val NO_MATCHING_CREDENTIAL = "no-matching-credential"
-
-    /** PoC addition: unknown operation id (or another agent's). Next step: stop polling. */
+    const val EXPIRED = "expired"
+    const val PROCESSING_ERROR = "processing-error"
+    const val OUTCOME_UNKNOWN = "outcome-unknown"
     const val NOT_FOUND = "not-found"
-
-    /** PoC addition: too many active operations for this agent. Next step: wait for some to finish. */
-    const val TOO_MANY_OPERATIONS = "too-many-operations"
+    const val NOT_CANCELLABLE = "not-cancellable"
 }
 
 data class OpError(val code: String, val detail: String? = null)
 
 data class InteractionView(val id: String, val uri: String, val expiresAt: Instant)
 
-/** Immutable view of an operation, as returned to the agent. */
+/** Immutable view of an operation. [toJson] is the A2WP -01 operation object. */
 data class OperationSnapshot(
     val id: String,
-    val kind: OpKind,
+    /** Null when the wallet could not tell what the request is. */
+    val kind: OpKind?,
     val status: OpStatus,
     val interaction: InteractionView?,
-    val result: JsonObject?,
+    /** The counterparty's continuation (for OpenID4VP, the Response Endpoint's redirect_uri), unchanged. */
+    val continuation: String?,
     val error: OpError?,
     val createdAt: Instant,
     val completedAt: Instant?,
 ) {
     fun toJson(): JsonObject = buildJsonObject {
-        put("operation_id", id)
-        put("operation", kind.wire)
+        put("id", id)
         put("status", status.wire)
         if (status == OpStatus.INTERACTION_REQUIRED && interaction != null) {
             put("interaction", buildJsonObject {
-                put("interaction_uri", interaction.uri)
+                put("uri", interaction.uri)
                 put("expires_at", interaction.expiresAt.toString())
             })
         }
-        if (status == OpStatus.COMPLETED && result != null) put("result", result)
+        if ((status == OpStatus.COMPLETED || status == OpStatus.FAILED) && continuation != null) put("continuation", continuation)
         if (status == OpStatus.FAILED && error != null) {
             put("error", buildJsonObject {
                 put("code", error.code)
@@ -133,14 +126,14 @@ class OperationAborted : RuntimeException("operation aborted") {
     override fun fillInStackTrace(): Throwable = this
 }
 
-/** Thrown inside a runner to fail the operation with a given code. */
-class OperationFailure(val code: String, val detail: String?) : RuntimeException(code) {
+/** Thrown inside a runner to fail the operation with a given code, and the counterparty's continuation if any. */
+class OperationFailure(val code: String, val detail: String?, val continuation: String? = null) : RuntimeException(code) {
     override fun fillInStackTrace(): Throwable = this
 }
 
 class Operation internal constructor(
     val id: String,
-    val kind: OpKind,
+    val kind: OpKind?,
     val agentId: String,
     val principalId: String,
     val dedupeKey: String?,
@@ -151,7 +144,7 @@ class Operation internal constructor(
     private var status: OpStatus = OpStatus.PENDING
     private var interaction: PendingInteraction? = null
     private var interactionView: InteractionView? = null
-    private var result: JsonObject? = null
+    private var continuation: String? = null
     private var error: OpError? = null
     private var committed = false
     private var completedAt: Instant? = null
@@ -165,7 +158,7 @@ class Operation internal constructor(
     val isCommitted: Boolean get() = synchronized(lock) { committed }
 
     private fun snapshotLocked() = OperationSnapshot(
-        id, kind, status, interactionView, result, error, createdAt, completedAt,
+        id, kind, status, interactionView, continuation, error, createdAt, completedAt,
     )
 
     private fun publish() {
@@ -195,17 +188,18 @@ class Operation internal constructor(
     /** The commit point. After this returns true, cancellation is refused and expiry reports outcome-unknown. */
     internal fun commit(): Boolean = mutate { committed = true }
 
-    internal fun complete(r: JsonObject): Boolean = mutate {
+    internal fun complete(c: String?): Boolean = mutate {
         status = OpStatus.COMPLETED
-        result = r
+        continuation = c
         interaction = null
         interactionView = null
         completedAt = Instant.now()
     }
 
-    internal fun fail(e: OpError): Boolean = mutate {
+    internal fun fail(e: OpError, c: String? = null): Boolean = mutate {
         status = OpStatus.FAILED
         error = e
+        continuation = c
         interaction = null
         interactionView = null
         completedAt = Instant.now()
@@ -215,7 +209,7 @@ class Operation internal constructor(
     internal fun expire(): Boolean = mutate {
         status = OpStatus.FAILED
         error = if (committed) OpError(ErrorCodes.OUTCOME_UNKNOWN, "The operation expired after the point of no return; the external outcome is unknown.")
-        else OpError(ErrorCodes.OPERATION_EXPIRED, "The operation expired before completion.")
+        else OpError(ErrorCodes.EXPIRED, "The operation reached the wallet's time limit before completion.")
         interaction = null
         interactionView = null
         completedAt = Instant.now()
@@ -262,12 +256,12 @@ class OperationContext internal constructor(
         if (!operation.commit()) throw OperationAborted()
     }
 
-    fun complete(result: JsonObject) {
-        operation.complete(result)
+    fun complete(continuation: String? = null) {
+        operation.complete(continuation)
     }
 
-    fun fail(code: String, detail: String?) {
-        operation.fail(OpError(code, detail))
+    fun fail(code: String, detail: String?, continuation: String? = null) {
+        operation.fail(OpError(code, detail), continuation)
     }
 }
 
@@ -291,13 +285,13 @@ class OperationManager(
     }
 
     /**
-     * Creates an operation and starts [runner]. If the same agent already has a nonterminal or completed operation
-     * with the same [dedupeKey] (the request or offer URL), that operation is returned instead, so a retried tool
-     * call cannot disclose or redeem twice.
+     * Creates an operation and starts [runner]. A2WP -01 repeated submissions: if the same agent submitted the same
+     * request string before, its most recent operation for it is returned, unless that operation ended before its
+     * commit point. So a retried call cannot disclose or redeem twice, but a cancelled or expired one can be retried.
      */
     fun create(
         agent: AgentContext,
-        kind: OpKind,
+        kind: OpKind?,
         dedupeKey: String?,
         runner: suspend (OperationContext) -> Unit,
     ): CreateResult {
@@ -305,11 +299,12 @@ class OperationManager(
         synchronized(createLock) {
             sweep()
             if (dedupeKey != null) {
-                val existing = ops.values.firstOrNull {
-                    it.agentId == agent.agentId && it.kind == kind && it.dedupeKey == dedupeKey &&
-                        it.snapshot().status.let { s -> !s.terminal || s == OpStatus.COMPLETED }
+                val latest = ops.values
+                    .filter { it.agentId == agent.agentId && it.dedupeKey == dedupeKey }
+                    .maxByOrNull { it.createdAt }
+                if (latest != null && (!latest.snapshot().status.terminal || latest.isCommitted)) {
+                    return CreateResult.Existing(latest)
                 }
-                if (existing != null) return CreateResult.Existing(existing)
             }
             val active = ops.values.count { it.agentId == agent.agentId && !it.snapshot().status.terminal }
             if (active >= maxActivePerAgent) return CreateResult.TooMany
@@ -330,19 +325,19 @@ class OperationManager(
             try {
                 runner(ctx)
                 if (!op.snapshot().status.terminal) {
-                    op.fail(OpError(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The wallet stopped without a result."))
+                    op.fail(OpError(ErrorCodes.PROCESSING_ERROR, "The wallet stopped without a result."))
                 }
             } catch (_: OperationAborted) {
                 // terminal already
             } catch (f: OperationFailure) {
-                op.fail(OpError(f.code, f.detail))
+                op.fail(OpError(f.code, f.detail), f.continuation)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 log.warn("operation {} failed: {}", op.id, e.javaClass.simpleName)
                 op.fail(
                     if (op.isCommitted) OpError(ErrorCodes.OUTCOME_UNKNOWN, "The wallet failed after the point of no return.")
-                    else OpError(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "Internal failure (${e.javaClass.simpleName}).")
+                    else OpError(ErrorCodes.PROCESSING_ERROR, "Internal failure (${e.javaClass.simpleName}).")
                 )
             } finally {
                 op.currentInteraction()?.outcome?.complete(InteractionOutcome.Aborted)
@@ -359,7 +354,7 @@ class OperationManager(
                 job.cancel()
             }
         }
-        log.info("operation {} created: {} for agent {}", op.id, kind.wire, agent.agentId)
+        log.info("operation {} created: {} for agent {}", op.id, kind?.wire ?: "unrecognized", agent.agentId)
         job.start()
         return CreateResult.Created(op)
     }
@@ -417,10 +412,10 @@ class OperationManager(
                     ctx.processing()
                     outcome
                 }
-                InteractionOutcome.Denied -> throw OperationFailure(ErrorCodes.POLICY_DENIED, "The user declined.")
+                InteractionOutcome.Denied -> throw OperationFailure(ErrorCodes.DENIED, "The user declined.")
                 InteractionOutcome.Expired ->
                     if (op.snapshot().status.terminal) throw OperationAborted()
-                    else throw OperationFailure(ErrorCodes.INTERACTION_EXPIRED, "The user did not respond in time.")
+                    else throw OperationFailure(ErrorCodes.EXPIRED, "The interaction expired before the user responded.")
                 InteractionOutcome.Aborted -> throw OperationAborted()
             }
         } finally {

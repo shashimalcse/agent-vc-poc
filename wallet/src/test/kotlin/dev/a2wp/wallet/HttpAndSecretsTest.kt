@@ -36,6 +36,7 @@ class HttpAndSecretsTest {
     private val secretCredential = "eyJhbGciOiJFUzI1NiJ9.SECRET-CREDENTIAL-PAYLOAD.sig~WyJzYWx0IiwiYWdlbnRfbmFtZSIsIlNFQ1JFVCJd~"
     private val secretKeyD = "SECRET-PRIVATE-D-VALUE"
     private val secretOfferCode = "SECRETPREAUTHCODE"
+    private val passcode = "2468"
 
     private fun config(dir: Path): LoadedConfig {
         val ca = Paths.get(javaClass.getResource("/test-ca.pem")!!.toURI()).toString()
@@ -46,7 +47,7 @@ class HttpAndSecretsTest {
           "allowed_hosts": ["localhost", "wallet.test"],
           "trust_anchors": ["$ca"],
           "store": {"path": "wallet.store", "key_env": null, "key_file": "store.key"},
-          "principals": [{"id": "p1", "name": "User", "display_name": "Ada"}],
+          "principals": [{"id": "p1", "name": "User", "display_name": "Ada", "approval_passcode_sha256": "${ApiKeyAuthenticator.sha256Hex(passcode)}"}],
           "agents": [
             {"id": "a1", "name": "Agent One", "api_key_sha256": "${ApiKeyAuthenticator.sha256Hex(apiKey)}", "principal": "p1", "policy": $policy},
             {"id": "a2", "name": "Agent Two", "api_key_sha256": "${ApiKeyAuthenticator.sha256Hex(otherKey)}", "principal": "p1", "policy": $policy}
@@ -71,7 +72,7 @@ class HttpAndSecretsTest {
                 )
                 ctx.commit()
                 app.store.addCredentials(listOf(c))
-                ctx.complete(buildJsonObject { put("credentials", kotlinx.serialization.json.JsonArray(listOf(AcquireService.metadata(c)))) })
+                ctx.complete()
             },
             presentOverride = { ctx, _, _ ->
                 ctx.processing()
@@ -134,7 +135,7 @@ class HttpAndSecretsTest {
         })
         assertEquals(HttpStatusCode.OK, ok.status)
         val tools = rpc(apiKey, "tools/list", id = 2).bodyAsText()
-        listOf("acquire_credential", "present_credential", "get_operation", "cancel_operation").forEach {
+        listOf("submit", "get", "cancel").forEach {
             assertTrue(tools.contains("\"$it\""), it)
         }
         // The approval page and health check are not behind the API key.
@@ -161,34 +162,36 @@ class HttpAndSecretsTest {
         val w = wallet(dir)
         application { w.module(this) }
 
-        // acquire
+        // Issuance: the agent submits the offer link; the wallet works out what it is.
         val offer = "openid-credential-offer://?credential_offer=" +
             java.net.URLEncoder.encode("""{"credential_issuer":"https://issuer.test","grants":{"urn:ietf:params:oauth:grant-type:pre-authorized_code":{"pre-authorized_code":"$secretOfferCode"}}}""", Charsets.UTF_8)
-        var op = tool(apiKey, "acquire_credential", buildJsonObject { put("offer", offer) }).op()
-        val acqId = op.s("operation_id")!!
+        var op = tool(apiKey, "submit", buildJsonObject { put("request", offer) }).op()
+        val acqId = op.s("id")!!
         assertTrue(acqId.startsWith("op_"))
-        op = tool(apiKey, "get_operation", buildJsonObject { put("operation_id", acqId); put("wait_seconds", 5) }).op()
-        if (op.s("status") != "completed") op = tool(apiKey, "get_operation", buildJsonObject { put("operation_id", acqId); put("wait_seconds", 5) }).op()
+        op = tool(apiKey, "get", buildJsonObject { put("id", acqId); put("wait_seconds", 5) }).op()
+        if (op.s("status") != "completed") op = tool(apiKey, "get", buildJsonObject { put("id", acqId); put("wait_seconds", 5) }).op()
         assertEquals("completed", op.s("status"))
-        assertEquals("cred_test1", op["result"]!!.jsonObject["credentials"].toString().let { Regex("cred_test1").find(it)?.value })
+        // A2WP -01: an issuance has no continuation, and the operation carries no credential handle.
+        assertEquals(setOf("id", "status"), op.keys)
 
         // Retried call with the same offer returns the same operation.
-        val again = tool(apiKey, "acquire_credential", buildJsonObject { put("offer", offer) }).op()
-        assertEquals(acqId, again.s("operation_id"))
+        val again = tool(apiKey, "submit", buildJsonObject { put("request", offer) }).op()
+        assertEquals(acqId, again.s("id"))
 
         // Another agent cannot see it.
-        val foreign = tool(otherKey, "get_operation", buildJsonObject { put("operation_id", acqId) })
+        val foreign = tool(otherKey, "get", buildJsonObject { put("id", acqId) })
         assertEquals(true, foreign["isError"]?.jsonPrimitive?.content?.toBoolean())
         assertEquals(ErrorCodes.NOT_FOUND, foreign["structuredContent"]!!.jsonObject["error"]!!.jsonObject.s("code"))
 
-        // present -> interaction_required -> approve on the page -> failure after commit
+        // Presentation -> pending with an interaction -> approve on the page -> failure after commit
         val req = "openid4vp://?client_id=x509_san_dns%3Averifier.test&request_uri=https%3A%2F%2Fverifier.test%2Fr%2F1"
-        op = tool(apiKey, "present_credential", buildJsonObject { put("request", req) }).op()
-        val pid = op.s("operation_id")!!
-        while (op.s("status") != "interaction_required") {
-            op = tool(apiKey, "get_operation", buildJsonObject { put("operation_id", pid); put("wait_seconds", 5) }).op()
+        op = tool(apiKey, "submit", buildJsonObject { put("request", req) }).op()
+        val pid = op.s("id")!!
+        while (op["interaction"] == null) {
+            op = tool(apiKey, "get", buildJsonObject { put("id", pid); put("wait_seconds", 5) }).op()
         }
-        val uri = op["interaction"]!!.jsonObject.s("interaction_uri")!!
+        assertEquals("pending", op.s("status"))
+        val uri = op["interaction"]!!.jsonObject.s("uri")!!
         assertTrue(uri.startsWith("https://wallet.test/approve/ia_"))
         val path = uri.removePrefix("https://wallet.test")
 
@@ -209,7 +212,7 @@ class HttpAndSecretsTest {
         assertEquals("no-store", pageResponse.headers[HttpHeaders.CacheControl])
         assertEquals("no-referrer", pageResponse.headers["Referrer-Policy"])
         // GET is side-effect free: the operation is still waiting for the user.
-        assertEquals("interaction_required", tool(apiKey, "get_operation", buildJsonObject { put("operation_id", pid) }).op().s("status"))
+        assertNotNull(tool(apiKey, "get", buildJsonObject { put("id", pid) }).op()["interaction"])
         // Fonts are served by the wallet itself.
         val font = client.get("/assets/fonts/Geist-Variable.woff2")
         assertEquals(HttpStatusCode.OK, font.status)
@@ -218,29 +221,36 @@ class HttpAndSecretsTest {
         assertEquals(HttpStatusCode.Forbidden, client.submitForm(path, parameters { append("action", "approve") }) {
             header(HttpHeaders.Origin, "https://evil.test")
         }.status)
-        val approved = client.submitForm(path, parameters { append("action", "approve") })
+        // Without the principal's passcode, the link alone cannot approve.
+        assertEquals(HttpStatusCode.Forbidden, client.submitForm(path, parameters { append("action", "approve") }).status)
+        val approved = client.submitForm(path, parameters { append("action", "approve"); append("passcode", passcode) })
         assertEquals(HttpStatusCode.OK, approved.status)
         // The result page reflects the real outcome (here the fake verifier step failed after commit).
         assertTrue(approved.bodyAsText().contains("Couldn&#39;t share"))
         assertTrue(client.get(path).bodyAsText().contains("Couldn&#39;t share"))
 
         while (op.s("status") != "failed") {
-            op = tool(apiKey, "get_operation", buildJsonObject { put("operation_id", pid); put("wait_seconds", 5) }).op()
+            op = tool(apiKey, "get", buildJsonObject { put("id", pid); put("wait_seconds", 5) }).op()
         }
         val err = op["error"]!!.jsonObject
-        assertEquals(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, err.s("code"))
+        assertEquals(ErrorCodes.PROCESSING_ERROR, err.s("code"))
         assertFalse(err.s("detail")!!.contains("vp_token"))
 
         // Cancel after terminal is not-cancellable.
-        val c = tool(apiKey, "cancel_operation", buildJsonObject { put("operation_id", pid) })
+        val c = tool(apiKey, "cancel", buildJsonObject { put("id", pid) })
         assertEquals(ErrorCodes.NOT_CANCELLABLE, c["structuredContent"]!!.jsonObject["error"]!!.jsonObject.s("code"))
 
-        // Bad input is a tool error, not an operation.
-        val bad = tool(apiKey, "present_credential", buildJsonObject { put("request", "hello") })
-        assertEquals(true, bad["isError"]?.jsonPrimitive?.content?.toBoolean())
-        assertNull(bad["structuredContent"]!!.jsonObject["operation"])
-        val badWait = tool(apiKey, "get_operation", buildJsonObject { put("operation_id", pid); put("wait_seconds", 99) })
-        assertEquals(ErrorCodes.INVALID_REQUEST, badWait["structuredContent"]!!.jsonObject["error"]!!.jsonObject.s("code"))
+        // Only a submission without a request string is rejected (an error and no operation).
+        val noRequest = tool(apiKey, "submit", buildJsonObject { })
+        assertEquals(true, noRequest["isError"]?.jsonPrimitive?.content?.toBoolean())
+        assertNull(noRequest["structuredContent"]!!.jsonObject["operation"])
+        assertEquals(ErrorCodes.UNSUPPORTED_REQUEST, noRequest["structuredContent"]!!.jsonObject["error"]!!.jsonObject.s("code"))
+        // A request the wallet does not recognize is an operation that fails with unsupported-request.
+        var bad = tool(apiKey, "submit", buildJsonObject { put("request", "hello") }).op()
+        while (bad.s("status") != "failed") bad = tool(apiKey, "get", buildJsonObject { put("id", bad.s("id")!!); put("wait_seconds", 5) }).op()
+        assertEquals(ErrorCodes.UNSUPPORTED_REQUEST, bad["error"]!!.jsonObject.s("code"))
+        // wait_seconds out of range is clamped, not rejected.
+        assertEquals("failed", tool(apiKey, "get", buildJsonObject { put("id", pid); put("wait_seconds", 99) }).op().s("status"))
 
         // Nothing secret in any tool output or page.
         val everything = allOutputs.joinToString("\n")
@@ -264,9 +274,12 @@ class HttpAndSecretsTest {
         val s = OperationSnapshot(
             "op_1", OpKind.PRESENT, OpStatus.FAILED, null, null, OpError(ErrorCodes.OUTCOME_UNKNOWN, "x"), Instant.now(), Instant.now(),
         )
-        assertEquals(setOf("operation_id", "operation", "status", "error"), s.toJson().keys)
+        assertEquals(setOf("id", "status", "error"), s.toJson().keys)
         val text = WalletTools.summary(s)
         assertTrue(text.contains("outcome-unknown"))
-        assertTrue(text.contains("Do not retry"))
+        assertTrue(text.contains("Do not submit this request again"))
+        // A continuation is passed through unchanged, also on failure.
+        val withContinuation = s.copy(continuation = "https://verifier.test/cb?error=x")
+        assertEquals("https://verifier.test/cb?error=x", withContinuation.toJson()["continuation"]!!.jsonPrimitive.content)
     }
 }

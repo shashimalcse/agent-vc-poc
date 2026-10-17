@@ -8,8 +8,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -45,7 +44,7 @@ class OperationManagerTest {
             gate.await()
             ctx.processing()
             ctx.commit()
-            ctx.complete(buildJsonObject { put("verifier", "v") })
+            ctx.complete("https://v.test/cb?response_code=rc1")
         })
         assertEquals(OpStatus.PENDING, op.snapshot().status)
         gate.complete(Unit)
@@ -53,20 +52,20 @@ class OperationManagerTest {
         assertEquals(OpStatus.COMPLETED, s.status)
         assertNotNull(s.completedAt)
         assertEquals("completed", s.toJson()["status"].toString().trim('"'))
-        assertNotNull(s.toJson()["result"])
-        assertNull(s.toJson()["error"])
+        assertEquals("https://v.test/cb?response_code=rc1", s.toJson()["continuation"].toString().trim('"'))
+        assertEquals(setOf("id", "status", "continuation"), s.toJson().keys)
     }
 
     @Test
     fun `terminal states never change`() = runBlocking<Unit> {
         val m = manager()
-        val op = created(m.create(agent, OpKind.ACQUIRE, null) { ctx -> ctx.fail(ErrorCodes.POLICY_DENIED, "no") })
+        val op = created(m.create(agent, OpKind.ACQUIRE, null) { ctx -> ctx.fail(ErrorCodes.DENIED, "no") })
         awaitStatus(op, OpStatus.FAILED)
-        op.complete(buildJsonObject { })
+        op.complete(null)
         op.markProcessing()
         assertIs<OperationManager.CancelOutcome.NotCancellable>(m.cancel(op))
         assertEquals(OpStatus.FAILED, op.snapshot().status)
-        assertEquals(ErrorCodes.POLICY_DENIED, op.snapshot().error?.code)
+        assertEquals(ErrorCodes.DENIED, op.snapshot().error?.code)
     }
 
     @Test
@@ -100,7 +99,7 @@ class OperationManagerTest {
             ctx.processing()
             ctx.commit()
             release.await()
-            ctx.complete(buildJsonObject { })
+            ctx.complete()
         })
         withTimeout(5.seconds) { while (!op.isCommitted) delay(5) }
         assertIs<OperationManager.CancelOutcome.NotCancellable>(m.cancel(op))
@@ -117,7 +116,7 @@ class OperationManagerTest {
             delay(10_000)
         })
         awaitStatus(op, OpStatus.FAILED)
-        assertEquals(ErrorCodes.OPERATION_EXPIRED, op.snapshot().error?.code)
+        assertEquals(ErrorCodes.EXPIRED, op.snapshot().error?.code)
     }
 
     @Test
@@ -153,13 +152,15 @@ class OperationManagerTest {
             ctx.processing()
             assertIs<InteractionOutcome.Approved>(ctx.interact(prompt))
             ctx.commit()
-            ctx.complete(buildJsonObject { })
+            ctx.complete()
         })
         awaitStatus(op, OpStatus.INTERACTION_REQUIRED)
         val view = assertNotNull(op.snapshot().interaction)
         assertTrue(view.uri.startsWith("https://wallet.test/approve/ia_"))
         val json = op.snapshot().toJson()
-        assertNotNull(json["interaction"])
+        // A2WP -01: still pending on the wire, with an interaction object.
+        assertEquals("pending", json["status"].toString().trim('"'))
+        assertEquals(view.uri, json["interaction"]!!.jsonObject["uri"].toString().trim('"'))
         assertTrue(m.resolveInteraction(view.id, InteractionOutcome.Approved()))
         // A second resolution is refused.
         assertEquals(false, m.resolveInteraction(view.id, InteractionOutcome.Denied))
@@ -174,7 +175,7 @@ class OperationManagerTest {
         awaitStatus(op, OpStatus.INTERACTION_REQUIRED)
         m.resolveInteraction(op.snapshot().interaction!!.id, InteractionOutcome.Denied)
         awaitStatus(op, OpStatus.FAILED)
-        assertEquals(ErrorCodes.POLICY_DENIED, op.snapshot().error?.code)
+        assertEquals(ErrorCodes.DENIED, op.snapshot().error?.code)
     }
 
     @Test
@@ -182,21 +183,30 @@ class OperationManagerTest {
         val m = manager(interactionTtl = 200.milliseconds)
         val op = created(m.create(agent, OpKind.PRESENT, null) { ctx -> ctx.interact(prompt) })
         awaitStatus(op, OpStatus.FAILED)
-        assertEquals(ErrorCodes.INTERACTION_EXPIRED, op.snapshot().error?.code)
+        assertEquals(ErrorCodes.EXPIRED, op.snapshot().error?.code)
     }
 
     @Test
-    fun `same request returns the existing operation, failed ones do not dedupe`() = runBlocking<Unit> {
+    fun `same request returns its operation unless that ended before its commit point`() = runBlocking<Unit> {
         val m = manager()
         val gate = CompletableDeferred<Unit>()
         val a = created(m.create(agent, OpKind.PRESENT, "k1") { gate.await() })
         val again = m.create(agent, OpKind.PRESENT, "k1") { error("must not run") }
         assertSame(a, assertIs<OperationManager.CreateResult.Existing>(again).op)
-        // Another agent with the same key gets its own operation.
+        // Another agent with the same request gets its own operation.
         created(m.create(other, OpKind.PRESENT, "k1") { gate.await() })
-        val f = created(m.create(agent, OpKind.ACQUIRE, "k2") { ctx -> ctx.fail(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, null) })
+        // Failed before the commit point: a resubmission starts a new operation.
+        val f = created(m.create(agent, OpKind.ACQUIRE, "k2") { ctx -> ctx.fail(ErrorCodes.PROCESSING_ERROR, null) })
         awaitStatus(f, OpStatus.FAILED)
         created(m.create(agent, OpKind.ACQUIRE, "k2") { })
+        // Failed after the commit point: a resubmission returns it, so nothing is disclosed twice.
+        val c = created(m.create(agent, OpKind.PRESENT, "k3") { ctx -> ctx.commit(); ctx.fail(ErrorCodes.PROCESSING_ERROR, null) })
+        awaitStatus(c, OpStatus.FAILED)
+        assertSame(c, assertIs<OperationManager.CreateResult.Existing>(m.create(agent, OpKind.PRESENT, "k3") { error("must not run") }).op)
+        // Completed: returned.
+        val d = created(m.create(agent, OpKind.PRESENT, "k4") { ctx -> ctx.commit(); ctx.complete() })
+        awaitStatus(d, OpStatus.COMPLETED)
+        assertSame(d, assertIs<OperationManager.CreateResult.Existing>(m.create(agent, OpKind.PRESENT, "k4") { error("must not run") }).op)
         gate.complete(Unit)
     }
 

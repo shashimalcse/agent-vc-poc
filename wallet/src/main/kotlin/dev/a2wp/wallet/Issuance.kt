@@ -34,12 +34,7 @@ import eu.europa.ec.eudi.sdjwt.vc.X509CertificateTrust
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.security.Signature
@@ -96,21 +91,21 @@ class AcquireService(
 
         // 2. Policy: the issuer and every offered credential type must be allowed.
         (PolicyEngine.authorizeIssuer(agent.policy, issuerId) as? PolicyEngine.Decision.Deny)?.let {
-            throw OperationFailure(ErrorCodes.POLICY_DENIED, it.reason)
+            throw OperationFailure(ErrorCodes.DENIED, it.reason)
         }
         val offered: List<Pair<CredentialConfigurationIdentifier, String>> =
             credentialOffer.credentialConfigurationIdentifiers.map { id ->
                 val conf = credentialOffer.credentialIssuerMetadata.credentialConfigurationsSupported[id]
                 if (conf !is SdJwtVcCredential) {
-                    throw OperationFailure(ErrorCodes.UNSUPPORTED_PROTOCOL, "Only SD-JWT VC (dc+sd-jwt) credentials are supported.")
+                    throw OperationFailure(ErrorCodes.UNSUPPORTED_REQUEST, "Only SD-JWT VC (dc+sd-jwt) credentials are supported.")
                 }
                 (PolicyEngine.authorizeCredentialType(agent.policy, issuerId, conf.type) as? PolicyEngine.Decision.Deny)?.let {
-                    throw OperationFailure(ErrorCodes.POLICY_DENIED, it.reason)
+                    throw OperationFailure(ErrorCodes.DENIED, it.reason)
                 }
                 id to conf.type
             }
         val preAuth = credentialOffer.grants?.preAuthorizedCode()
-            ?: throw OperationFailure(ErrorCodes.UNSUPPORTED_PROTOCOL, "Only the pre-authorized code grant is supported.")
+            ?: throw OperationFailure(ErrorCodes.UNSUPPORTED_REQUEST, "Only the pre-authorized code grant is supported.")
 
         // 3. A transaction code is entered by the user on the wallet's page, never relayed by the agent.
         var txCode: String? = null
@@ -128,8 +123,11 @@ class AcquireService(
             txCode = (outcome as InteractionOutcome.Approved).txCode
         }
 
-        // 4. Redeem the code, then request each credential with a fresh P-256 holder key.
+        // 4. Commit point (A2WP -01): redeeming the pre-authorized code cannot be undone, so from here cancellation
+        //    is refused and a resubmission returns this operation. Then request each credential with a fresh
+        //    P-256 holder key.
         val issuer = Issuer.make(vciConfig, credentialOffer, http).getOrElse { throw mapVciError("Issuer negotiation failed", it) }.first
+        ctx.commit()
         var authorized = with(issuer) {
             authorizeWithPreAuthorizationCode(txCode).getOrElse { throw mapVciError("Token request failed", it) }
         }
@@ -146,12 +144,12 @@ class AcquireService(
             authorized = next
             val credentials = when (outcome) {
                 is SubmissionOutcome.Success -> outcome.credentials
-                is SubmissionOutcome.Deferred -> throw OperationFailure(ErrorCodes.UNSUPPORTED_PROTOCOL, "Deferred issuance is not supported.")
+                is SubmissionOutcome.Deferred -> throw OperationFailure(ErrorCodes.UNSUPPORTED_REQUEST, "Deferred issuance is not supported.")
                 is SubmissionOutcome.Failed -> throw mapVciError("The issuer refused the credential request", outcome.error)
             }
             for (c in credentials) {
                 val sdJwt = (c.credential as? Credential.Str)?.value
-                    ?: throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The issuer returned a credential in an unexpected form.")
+                    ?: throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The issuer returned a credential in an unexpected form.")
                 val checked = verifyIssued(sdJwt, issuerId, expectedVct, holderKey, agent)
                 toStore += StoredCredential(
                     handle = "cred_" + OperationManager.randomId(),
@@ -167,17 +165,12 @@ class AcquireService(
                 )
             }
         }
-        if (toStore.isEmpty()) throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The issuer returned no credentials.")
+        if (toStore.isEmpty()) throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The issuer returned no credentials.")
 
-        // 5. Commit point: from here the credentials are retained and cancellation is refused.
-        ctx.commit()
+        // 5. Keep the credentials only now that every one of them was obtained and validated. No continuation.
         withContext(Dispatchers.IO) { store.addCredentials(toStore) }
         log.info("acquired {} credential(s) from {} for agent {}", toStore.size, issuerId, agent.agentId)
-        ctx.complete(
-            buildJsonObject {
-                put("credentials", JsonArray(toStore.map { metadata(it) }))
-            },
-        )
+        ctx.complete()
     }
 
     private data class Checked(val expiresAt: Instant?)
@@ -186,38 +179,32 @@ class AcquireService(
     private suspend fun verifyIssued(sdJwt: String, issuerId: String, expectedVct: String, holderKey: ECKey, agent: AgentContext): Checked {
         val verified = sdJwtVcVerifier.verify(sdJwt).getOrElse {
             log.warn("issued credential failed verification: {}", it.javaClass.simpleName)
-            throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The issued credential failed signature or trust verification.")
+            throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The issued credential failed signature or trust verification.")
         }
         val claims = verified.jwt.jwtClaimsSet
         if (claims.issuer != issuerId) {
-            throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The credential's iss does not match the credential issuer.")
+            throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The credential's iss does not match the credential issuer.")
         }
         (PolicyEngine.authorizeIssuer(agent.policy, claims.issuer) as? PolicyEngine.Decision.Deny)?.let {
-            throw OperationFailure(ErrorCodes.POLICY_DENIED, it.reason)
+            throw OperationFailure(ErrorCodes.DENIED, it.reason)
         }
         val vct = claims.getStringClaim("vct")
-        if (vct != expectedVct) throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The credential's vct is not the offered type.")
+        if (vct != expectedVct) throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The credential's vct is not the offered type.")
         val cnfJwk = runCatching {
             @Suppress("UNCHECKED_CAST")
             JWK.parse(claims.getJSONObjectClaim("cnf")["jwk"] as Map<String, Any>)
-        }.getOrNull() ?: throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The credential is not bound to a holder key.")
+        }.getOrNull() ?: throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The credential is not bound to a holder key.")
         if (cnfJwk.computeThumbprint() != holderKey.toPublicJWK().computeThumbprint()) {
-            throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The credential is bound to a different key.")
+            throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The credential is bound to a different key.")
         }
         val exp = claims.expirationTime?.toInstant()
         if (exp != null && exp.isBefore(Instant.now())) {
-            throw OperationFailure(ErrorCodes.EXTERNAL_PROTOCOL_ERROR, "The issued credential is already expired.")
+            throw OperationFailure(ErrorCodes.PROCESSING_ERROR, "The issued credential is already expired.")
         }
         return Checked(exp)
     }
 
     companion object {
-        fun metadata(c: StoredCredential): JsonObject = buildJsonObject {
-            put("credential_handle", c.handle)
-            put("vct", c.vct)
-            put("issuer", c.issuer)
-        }
-
         /** A one-key JWT proof signer. Returns DER signatures; the library transcodes them to JWS form. */
         fun singleKeySigner(key: ECKey): BatchSigner<JwtBindingKey> = object : BatchSigner<JwtBindingKey> {
             override val javaAlgorithm: String = "SHA256withECDSA"
@@ -240,14 +227,14 @@ class AcquireService(
         fun mapVciError(what: String, e: Throwable): OperationFailure {
             if (e is OperationFailure) return e
             if (generateSequence(e) { it.cause }.any { it is java.net.UnknownHostException && it.message?.startsWith("blocked") == true }) {
-                return OperationFailure(ErrorCodes.POLICY_DENIED, "$what (address blocked by the wallet's network policy).")
+                return OperationFailure(ErrorCodes.DENIED, "$what (address blocked by the wallet's network policy).")
             }
             val inner = (e as? eu.europa.ec.eudi.openid4vci.CredentialOfferRequestException)?.error
             val name = (inner ?: e).javaClass.simpleName.ifBlank { "Error" }
             val code = when {
-                generateSequence(e) { it.cause }.any { it is ResponseTooLarge } -> ErrorCodes.EXTERNAL_PROTOCOL_ERROR
-                name.contains("UnsupportedGrants") || name.contains("Unsupported") -> ErrorCodes.UNSUPPORTED_PROTOCOL
-                else -> ErrorCodes.EXTERNAL_PROTOCOL_ERROR
+                generateSequence(e) { it.cause }.any { it is ResponseTooLarge } -> ErrorCodes.PROCESSING_ERROR
+                name.contains("UnsupportedGrants") || name.contains("Unsupported") -> ErrorCodes.UNSUPPORTED_REQUEST
+                else -> ErrorCodes.PROCESSING_ERROR
             }
             return OperationFailure(code, "$what ($name).")
         }
